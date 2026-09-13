@@ -1,13 +1,153 @@
 <!DOCTYPE html>
-<html>
+<html lang="en">
 
 <head>
-    <title>ctOS</title>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>ctOS Profiler</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <link
+        href="https://fonts.googleapis.com/css2?family=IBM+Plex+Mono:wght@400;500&family=IBM+Plex+Sans:wght@400;500;600&display=swap"
+        rel="stylesheet" />
+    <script>
+        tailwind.config = {
+            theme: {
+                extend: {
+                    colors: {
+                        void: "#070809",
+                        panel: "#101214",
+                        line: "#1c2124",
+                        ink: "#e8e4dc",
+                        mute: "#8b938e",
+                        sage: "#7ea392",
+                        warn: "#c4a574",
+                        high: "#c45c4a",
+                    },
+                    fontFamily: {
+                        sans: ["IBM Plex Sans", "sans-serif"],
+                        mono: ["IBM Plex Mono", "monospace"],
+                    },
+                },
+            },
+        };
+    </script>
 </head>
 
-<body style="background:#070809;color:#e8e4dc;font-family:sans-serif;padding:40px">
-    <h1>ctOS Profiler</h1>
-    <p>Slice 1 — demo. Scan locked.</p>
+<body class="bg-void text-ink font-sans min-h-screen">
+    <div class="max-w-6xl mx-auto px-6 py-10">
+        <header class="flex items-end justify-between border-b border-line pb-6 mb-8">
+            <div>
+                <p class="font-mono text-xs tracking-[0.35em] text-sage uppercase">Blume / local node</p>
+                <h1 class="text-3xl font-semibold tracking-tight mt-1">ctOS Profiler</h1>
+                <p class="text-mute text-sm mt-1">Beta v1 — authorized LAN visibility only</p>
+            </div>
+            <span id="status" class="font-mono text-xs text-mute">idle</span>
+        </header>
+
+        <section class="grid md:grid-cols-2 gap-6 mb-8">
+            <div class="bg-panel border border-line p-5">
+                <p class="font-mono text-[11px] text-mute uppercase tracking-widest mb-3">Authorization gate</p>
+                <label class="block text-xs text-mute mb-1">CIDR</label>
+                <input id="cidr" placeholder="192.168.1.0/24"
+                    class="w-full bg-void border border-line px-3 py-2 font-mono text-sm outline-none focus:border-sage" />
+                <label class="flex items-start gap-2 mt-4 text-sm text-mute">
+                    <input id="auth" type="checkbox" class="mt-1" />
+                    <span>I own this network or have written authorization to scan it.</span>
+                </label>
+                <p class="text-xs text-warn mt-3">Real scan is locked until a later slice. Use demo data.</p>
+            </div>
+            <div class="bg-panel border border-line p-5">
+                <p class="font-mono text-[11px] text-mute uppercase tracking-widest mb-3">Session</p>
+                <p class="text-sm text-mute mb-4">Demo hosts are fake. Your network is not touched.</p>
+                <div class="flex flex-wrap gap-2">
+                    <button type="button" class="px-3 py-2 bg-line text-mute text-sm cursor-not-allowed">Scan</button>
+                    <button type="button"
+                        class="px-3 py-2 border border-line text-mute text-sm cursor-not-allowed">Cancel</button>
+                    <button id="demoBtn" type="button" class="px-3 py-2 bg-sage text-void text-sm font-medium">Demo
+                        data</button>
+                </div>
+            </div>
+        </section>
+
+        <section id="grid" class="grid sm:grid-cols-2 lg:grid-cols-3 gap-4"></section>
+        <p id="empty" class="text-mute text-sm mt-2">No nodes. Load demo data.</p>
+
+        <section id="log" class="mt-8 bg-panel border border-line p-4 font-mono text-xs text-mute leading-6"></section>
+    </div>
+
+    <aside id="drawer"
+        class="hidden fixed inset-y-0 right-0 w-full max-w-md bg-panel border-l border-line p-6 overflow-y-auto">
+        <button id="closeDrawer" class="text-mute text-sm mb-4">close</button>
+        <div id="drawerBody"></div>
+    </aside>
+
+    <script>
+        const edge = { low: "border-l-sage", medium: "border-l-warn", high: "border-l-high" };
+        const badge = {
+            low: "border-line text-mute",
+            medium: "border-warn text-warn",
+            high: "border-high text-high",
+        };
+
+        async function getState() {
+            const r = await fetch("/api/state");
+            return r.json();
+        }
+
+        function render(state) {
+            document.getElementById("status").textContent = state.status || "idle";
+            document.getElementById("log").innerHTML = (state.log || []).map((l) => `<p>${l}</p>`).join("");
+            const grid = document.getElementById("grid");
+            grid.innerHTML = "";
+            const hosts = state.hosts || [];
+            document.getElementById("empty").style.display = hosts.length ? "none" : "block";
+            hosts.forEach((h) => {
+                const el = document.createElement("article");
+                el.className = `bg-panel border border-line border-l-2 ${edge[h.level] || "border-l-line"} p-4 cursor-pointer`;
+                el.innerHTML = `
+          <div class="flex justify-between items-start">
+            <p class="font-mono text-lg">${h.ip}</p>
+            <span class="text-[10px] font-mono uppercase tracking-wider ${h.is_self ? "text-sage" : "text-mute"}">${h.is_self ? "you" : "node"}</span>
+          </div>
+          <p class="text-xs text-mute mt-1">hostname · ${h.hostname || "—"}</p>
+          <p class="font-mono text-xs text-mute mt-3">${h.mac || "—"}</p>
+          <p class="text-xs text-mute">vendor · ${h.vendor || "—"}</p>
+          <div class="mt-4 flex items-center justify-between">
+            <span class="text-[10px] font-mono uppercase tracking-wider px-2 py-1 border ${badge[h.level] || ""}">${h.level}</span>
+            <span class="font-mono text-xs text-mute">${(h.ports || []).map((p) => p.port).join(" ") || "—"}</span>
+          </div>`;
+                el.onclick = () => openProfile(h);
+                grid.appendChild(el);
+            });
+        }
+
+        function openProfile(h) {
+            document.getElementById("drawer").classList.remove("hidden");
+            const ports = (h.ports || []).map((p) => `<li class="font-mono">${p.port} ${p.name} · ${p.state}</li>`).join("");
+            const reasons = (h.reasons || []).map((r) => `<li>${r}</li>`).join("");
+            document.getElementById("drawerBody").innerHTML = `
+        <p class="font-mono text-[11px] text-sage uppercase tracking-widest">profile</p>
+        <h2 class="font-mono text-2xl mt-1">${h.ip}</h2>
+        <p class="text-sm text-mute mt-2">${h.hostname || "—"} · ${h.vendor || "—"}</p>
+        <p class="font-mono text-xs text-mute mt-2">${h.mac || "—"}</p>
+        <p class="mt-4 text-[10px] font-mono uppercase tracking-wider inline-block px-2 py-1 border ${badge[h.level] || ""}">${h.level} · ${h.score}</p>
+        <p class="mt-6 text-xs text-mute uppercase tracking-widest">ports</p>
+        <ul class="mt-2 text-sm space-y-1">${ports || "<li>—</li>"}</ul>
+        <p class="mt-6 text-xs text-mute uppercase tracking-widest">reasons</p>
+        <ul class="mt-2 text-sm space-y-1 list-disc list-inside">${reasons || "<li>—</li>"}</ul>`;
+        }
+
+        document.getElementById("closeDrawer").onclick = () => {
+            document.getElementById("drawer").classList.add("hidden");
+        };
+
+        document.getElementById("demoBtn").onclick = async () => {
+            await fetch("/api/demo", { method: "POST" });
+            render(await getState());
+        };
+
+        getState().then(render);
+    </script>
 </body>
 
 </html>
