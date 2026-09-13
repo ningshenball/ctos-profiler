@@ -9,6 +9,7 @@ import uvicorn
 from fastapi import FastAPI
 from fastapi.responses import FileResponse, JSONResponse
 from fastapi.staticfiles import StaticFiles
+from pydantic import BaseModel, Field
 
 from scanner.discover import discover, require_small_private
 
@@ -26,9 +27,15 @@ EMPTY = {
     "log": ["[boot] ctOS profiler", "[gate] private /24 only · authorization required"],
 }
 
+# Single-user localhost session. Not multi-tenant; one process, one operator.
 STATE = dict(EMPTY)
 CANCEL = threading.Event()
 LOCK = threading.Lock()
+
+
+class ScanRequest(BaseModel):
+    cidr: str = Field(..., min_length=1)
+    authorized: bool = False
 
 
 def reset_state() -> None:
@@ -123,20 +130,18 @@ def api_demo():
 
 
 @app.post("/api/scan")
-def api_scan(body: dict):
-    cidr = (body or {}).get("cidr") or ""
-    authorized = bool((body or {}).get("authorized"))
-    if not authorized:
+def api_scan(body: ScanRequest):
+    if not body.authorized:
         return JSONResponse({"error": "authorization required"}, status_code=400)
     try:
-        require_small_private(cidr)
+        require_small_private(body.cidr)
     except ValueError as exc:
         return JSONResponse({"error": str(exc)}, status_code=400)
     with LOCK:
         if STATE.get("status") == "running":
             return JSONResponse({"error": "scan already running"}, status_code=409)
     CANCEL.clear()
-    threading.Thread(target=run_discover, args=(cidr,), daemon=True).start()
+    threading.Thread(target=run_discover, args=(body.cidr,), daemon=True).start()
     return {"ok": True}
 
 

@@ -21,6 +21,9 @@ MAC_RE = re.compile(
 PHYS_RE = re.compile(r"Physical Address[.\s]*:\s*([0-9A-Fa-f-]{17})")
 IP_RE = re.compile(r"IPv4 Address[.\s]*:\s*(\d{1,3}(?:\.\d{1,3}){3})")
 
+def discover(cidr: str, cancel: threading.Event, on_host, on_log) -> None:
+    """Ping+ARP+short TCP probe on an already-validated private /24. Own LAN only."""
+
 
 def require_small_private(cidr: str) -> ipaddress.IPv4Network:
     net = ipaddress.ip_network(cidr.strip(), strict=False)
