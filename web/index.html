@@ -54,29 +54,30 @@
                     <input id="auth" type="checkbox" class="mt-1" />
                     <span>I own this network or have written authorization to scan it.</span>
                 </label>
-                <p class="text-xs text-warn mt-3">Real scan is locked until a later slice. Use demo data.</p>
+                <p class="text-xs text-warn mt-3">This slice still sends no packets. Scan is a fake profiler job.</p>
             </div>
             <div class="bg-panel border border-line p-5">
                 <p class="font-mono text-[11px] text-mute uppercase tracking-widest mb-3">Session</p>
-                <p class="text-sm text-mute mb-4">Demo hosts are fake. Your network is not touched.</p>
+                <p class="text-sm text-mute mb-4">Check the box + CIDR to enable Scan. Demo still works anytime.</p>
                 <div class="flex flex-wrap gap-2">
-                    <button type="button" class="px-3 py-2 bg-line text-mute text-sm cursor-not-allowed">Scan</button>
-                    <button type="button"
-                        class="px-3 py-2 border border-line text-mute text-sm cursor-not-allowed">Cancel</button>
+                    <button id="scanBtn" type="button" class="px-3 py-2 bg-line text-mute text-sm">Scan</button>
+                    <button id="cancelBtn" type="button"
+                        class="px-3 py-2 border border-line text-mute text-sm">Cancel</button>
                     <button id="demoBtn" type="button" class="px-3 py-2 bg-sage text-void text-sm font-medium">Demo
                         data</button>
                 </div>
+                <p id="err" class="text-xs text-high mt-3"></p>
             </div>
         </section>
 
         <section id="grid" class="grid sm:grid-cols-2 lg:grid-cols-3 gap-4"></section>
-        <p id="empty" class="text-mute text-sm mt-2">No nodes. Load demo data.</p>
+        <p id="empty" class="text-mute text-sm mt-2">No nodes. Load demo or run a fake scan.</p>
 
         <section id="log" class="mt-8 bg-panel border border-line p-4 font-mono text-xs text-mute leading-6"></section>
     </div>
 
     <aside id="drawer"
-        class="hidden fixed inset-y-0 right-0 w-full max-w-md bg-panel border-l border-line p-6 overflow-y-auto">
+        class="hidden fixed inset-y-0 right-0 w-full max-w-md bg-panel border-l border-line p-6 overflow-y-auto z-10">
         <button id="closeDrawer" class="text-mute text-sm mb-4">close</button>
         <div id="drawerBody"></div>
     </aside>
@@ -88,6 +89,7 @@
             medium: "border-warn text-warn",
             high: "border-high text-high",
         };
+        let timer = null;
 
         async function getState() {
             const r = await fetch("/api/state");
@@ -119,6 +121,8 @@
                 el.onclick = () => openProfile(h);
                 grid.appendChild(el);
             });
+            if (state.status === "running") startPoll();
+            else stopPoll();
         }
 
         function openProfile(h) {
@@ -137,12 +141,45 @@
         <ul class="mt-2 text-sm space-y-1 list-disc list-inside">${reasons || "<li>—</li>"}</ul>`;
         }
 
+        function startPoll() {
+            if (timer) return;
+            timer = setInterval(async () => render(await getState()), 400);
+        }
+        function stopPoll() {
+            if (timer) clearInterval(timer);
+            timer = null;
+        }
+
         document.getElementById("closeDrawer").onclick = () => {
             document.getElementById("drawer").classList.add("hidden");
         };
 
         document.getElementById("demoBtn").onclick = async () => {
+            document.getElementById("err").textContent = "";
             await fetch("/api/demo", { method: "POST" });
+            render(await getState());
+        };
+
+        document.getElementById("scanBtn").onclick = async () => {
+            document.getElementById("err").textContent = "";
+            const cidr = document.getElementById("cidr").value.trim();
+            const authorized = document.getElementById("auth").checked;
+            const r = await fetch("/api/scan", {
+                method: "POST",
+                headers: { "Content-Type": "application/json" },
+                body: JSON.stringify({ cidr, authorized }),
+            });
+            const data = await r.json();
+            if (!r.ok) {
+                document.getElementById("err").textContent = data.error || "scan blocked";
+                return;
+            }
+            startPoll();
+            render(await getState());
+        };
+
+        document.getElementById("cancelBtn").onclick = async () => {
+            await fetch("/api/cancel", { method: "POST" });
             render(await getState());
         };
 
