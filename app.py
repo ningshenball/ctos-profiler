@@ -1,5 +1,6 @@
-"""ctOS Profiler — Slice 4: authorized private-LAN discovery. Localhost UI."""
+"""ctOS Profiler — authorized private-LAN discovery. Localhost UI."""
 
+import json
 import threading
 import time
 from pathlib import Path
@@ -15,6 +16,7 @@ ROOT = Path(__file__).parent
 WEB = ROOT / "web"
 DATA = ROOT / "data"
 DEMO = DATA / "demo_hosts.json"
+LAST = DATA / "last_scan.json"
 
 EMPTY = {
     "scan_id": None,
@@ -38,9 +40,12 @@ def add_host(host: dict) -> None:
 
 
 def load_demo():
-    import json
-
     return json.loads(DEMO.read_text(encoding="utf-8"))
+
+
+def save_last() -> None:
+    DATA.mkdir(exist_ok=True)
+    LAST.write_text(json.dumps(STATE, indent=2), encoding="utf-8")
 
 
 def run_discover(cidr: str) -> None:
@@ -66,6 +71,7 @@ def run_discover(cidr: str) -> None:
                 STATE["status"] = "cancelled"
             elif STATE["status"] == "running":
                 STATE["status"] = "done"
+            save_last()
     except Exception as exc:
         with LOCK:
             STATE["status"] = "error"
@@ -92,6 +98,7 @@ def api_demo():
     global STATE
     with LOCK:
         STATE = load_demo()
+        save_last()
     return STATE
 
 
@@ -117,6 +124,16 @@ def api_scan(body: dict):
 def api_cancel():
     CANCEL.set()
     return {"ok": True}
+
+
+@app.get("/api/export")
+def api_export():
+    with LOCK:
+        payload = dict(STATE)
+    return JSONResponse(
+        payload,
+        headers={"Content-Disposition": "attachment; filename=ctos-scan.json"},
+    )
 
 
 if __name__ == "__main__":

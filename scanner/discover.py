@@ -12,6 +12,7 @@ from concurrent.futures import ThreadPoolExecutor, as_completed
 
 from scanner.ports import probe
 from scanner.score import score_host
+from scanner.vendor import vendor_of
 
 MAC_RE = re.compile(
     r"(\d{1,3}(?:\.\d{1,3}){3})\s+([0-9a-fA-F]{2}(?:[-:][0-9a-fA-F]{2}){5})"
@@ -124,10 +125,11 @@ def discover(cidr: str, cancel: threading.Event, on_host, on_log) -> None:
         on_log(f"[ports] {ip}")
         ports = probe(ip)
         total, level, reasons = score_host(ports)
+        mac = table.get(ip, "")
         host = {
             "ip": ip,
-            "mac": table.get(ip, ""),
-            "vendor": "",
+            "mac": mac,
+            "vendor": vendor_of(mac),
             "hostname": _hostname(ip),
             "ports": ports,
             "score": total,

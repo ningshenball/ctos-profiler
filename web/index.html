@@ -54,7 +54,8 @@
                     <input id="auth" type="checkbox" class="mt-1" />
                     <span>I own this network or have written authorization to scan it.</span>
                 </label>
-                <p class="text-xs text-warn mt-3">This slice still sends no packets. Scan is a fake profiler job.</p>
+                <p class="text-xs text-warn mt-3">Real scan = ping + ARP + short TCP checks on a private /24 you own.
+                    Not the page URL.</p>
             </div>
             <div class="bg-panel border border-line p-5">
                 <p class="font-mono text-[11px] text-mute uppercase tracking-widest mb-3">Session</p>
@@ -65,13 +66,15 @@
                         class="px-3 py-2 border border-line text-mute text-sm">Cancel</button>
                     <button id="demoBtn" type="button" class="px-3 py-2 bg-sage text-void text-sm font-medium">Demo
                         data</button>
+                    <a id="exportBtn" href="/api/export" class="px-3 py-2 border border-sage text-sage text-sm">Export
+                        JSON</a>
                 </div>
                 <p id="err" class="text-xs text-high mt-3"></p>
             </div>
         </section>
 
         <section id="grid" class="grid sm:grid-cols-2 lg:grid-cols-3 gap-4"></section>
-        <p id="empty" class="text-mute text-sm mt-2">No nodes. Load demo or run a fake scan.</p>
+        <p id="empty" class="text-mute text-sm mt-2">No nodes. Load demo or run a scan.</p>
 
         <section id="log" class="mt-8 bg-panel border border-line p-4 font-mono text-xs text-mute leading-6"></section>
     </div>
@@ -188,4 +191,3 @@
 </body>
 
 </html>
-Real scan = ping + ARP on a private /24 you own. Not the page URL.
