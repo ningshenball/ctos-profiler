@@ -31,6 +31,17 @@ CANCEL = threading.Event()
 LOCK = threading.Lock()
 
 
+def reset_state() -> None:
+    global STATE
+    STATE = {
+        "scan_id": None,
+        "cidr": "",
+        "status": "idle",
+        "hosts": [],
+        "log": list(EMPTY["log"]),
+    }
+
+
 def log_line(msg: str) -> None:
     STATE["log"] = (STATE.get("log") or [])[-180:] + [msg]
 
@@ -91,6 +102,15 @@ def index():
 def api_state():
     with LOCK:
         return dict(STATE)
+
+
+@app.post("/api/clear")
+def api_clear():
+    with LOCK:
+        if STATE.get("status") == "running":
+            CANCEL.set()
+        reset_state()
+    return STATE
 
 
 @app.post("/api/demo")

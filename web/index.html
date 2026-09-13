@@ -5,9 +5,12 @@
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1" />
     <title>ctOS Profiler</title>
+    <meta name="description" content="ctOS Profiler — authorized private-LAN host discovery and exposure scoring." />
+    <link rel="icon"
+        href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><rect rx='18' width='100' height='100' fill='%23101214'/><text x='50' y='68' text-anchor='middle' font-size='52' font-family='monospace' fill='%237ea392'>⬡</text></svg>" />
     <script src="https://cdn.tailwindcss.com"></script>
     <link
-        href="https://fonts.googleapis.com/css2?family=IBM+Plex+Mono:wght@400;500&family=IBM+Plex+Sans:wght@400;500;600&display=swap"
+        href="https://fonts.googleapis.com/css2?family=IBM+Plex+Mono:wght@400;500;600&family=IBM+Plex+Sans:wght@400;500;600&display=swap"
         rel="stylesheet" />
     <script>
         tailwind.config = {
@@ -22,6 +25,7 @@
                         sage: "#7ea392",
                         warn: "#c4a574",
                         high: "#c45c4a",
+                        deep: "#0c0e10",
                     },
                     fontFamily: {
                         sans: ["IBM Plex Sans", "sans-serif"],
@@ -32,6 +36,23 @@
         };
     </script>
     <style>
+        body::before {
+            content: "";
+            position: fixed;
+            inset: 0;
+            background-image:
+                linear-gradient(rgba(126, 163, 146, 0.03) 1px, transparent 1px),
+                linear-gradient(90deg, rgba(126, 163, 146, 0.03) 1px, transparent 1px);
+            background-size: 48px 48px;
+            pointer-events: none;
+            z-index: 0;
+        }
+
+        body>* {
+            position: relative;
+            z-index: 1;
+        }
+
         @keyframes scanline {
             0% {
                 transform: translateY(-100%);
@@ -48,6 +69,84 @@
             }
         }
 
+        .scanline {
+            pointer-events: none;
+            position: fixed;
+            left: 0;
+            right: 0;
+            height: 80px;
+            background: linear-gradient(to bottom, transparent, rgba(126, 163, 146, 0.12), transparent);
+            animation: scanline 2.8s linear infinite;
+            z-index: 50;
+        }
+
+        @keyframes glitch-skew {
+
+            0%,
+            100% {
+                transform: skew(0deg);
+            }
+
+            20% {
+                transform: skew(-1deg);
+            }
+
+            40% {
+                transform: skew(0.8deg);
+            }
+
+            60% {
+                transform: skew(-0.3deg);
+            }
+
+            80% {
+                transform: skew(0.5deg);
+            }
+        }
+
+        .glitch {
+            animation: glitch-skew 8s ease-in-out infinite alternate;
+        }
+
+        .glitch::before,
+        .glitch::after {
+            content: attr(data-text);
+            position: absolute;
+            left: 0;
+            top: 0;
+            opacity: 0;
+        }
+
+        .glitch:hover::before {
+            opacity: 0.6;
+            color: #c45c4a;
+            clip-path: inset(20% 0 40% 0);
+            transform: translate(-2px);
+            animation: glitch-clip 0.4s steps(2) infinite;
+        }
+
+        .glitch:hover::after {
+            opacity: 0.6;
+            color: #7ea392;
+            clip-path: inset(50% 0 10% 0);
+            transform: translate(2px);
+            animation: glitch-clip 0.4s steps(2) infinite reverse;
+        }
+
+        @keyframes glitch-clip {
+            0% {
+                clip-path: inset(10% 0 60% 0);
+            }
+
+            50% {
+                clip-path: inset(50% 0 20% 0);
+            }
+
+            100% {
+                clip-path: inset(30% 0 30% 0);
+            }
+        }
+
         @keyframes pulse-sage {
 
             0%,
@@ -60,16 +159,60 @@
             }
         }
 
+        .is-running #scanBtn {
+            background: #7ea392;
+            color: #070809;
+            animation: pulse-sage 1.2s ease-out infinite;
+        }
+
         @keyframes card-in {
             from {
                 opacity: 0;
-                transform: translateY(8px);
+                transform: translateY(12px) scale(0.97);
             }
 
             to {
                 opacity: 1;
-                transform: translateY(0);
+                transform: translateY(0) scale(1);
             }
+        }
+
+        @keyframes card-out {
+            to {
+                opacity: 0;
+                transform: translateY(-8px) scale(0.97);
+            }
+        }
+
+        .card-enter {
+            animation: card-in 0.4s cubic-bezier(0.16, 1, 0.3, 1) both;
+        }
+
+        .card-exit {
+            animation: card-out 0.25s ease-in both;
+        }
+
+        .host-card {
+            transition: transform 0.2s ease, border-color 0.2s ease, box-shadow 0.2s ease;
+        }
+
+        .host-card:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 4px 24px rgba(126, 163, 146, 0.08);
+        }
+
+        .host-card.border-l-sage:hover {
+            border-color: #1c2124;
+            border-left-color: #7ea392;
+            box-shadow: 0 4px 24px rgba(126, 163, 146, 0.1);
+        }
+
+        .host-card.border-l-warn:hover {
+            box-shadow: 0 4px 24px rgba(196, 165, 116, 0.1);
+        }
+
+        .host-card.border-l-high:hover {
+            box-shadow: 0 4px 24px rgba(196, 92, 74, 0.12);
         }
 
         @keyframes drawer-in {
@@ -82,177 +225,516 @@
             }
         }
 
-        .scanline {
-            pointer-events: none;
-            position: fixed;
-            left: 0;
-            right: 0;
-            height: 80px;
-            background: linear-gradient(to bottom, transparent, rgba(126, 163, 146, 0.12), transparent);
-            animation: scanline 2.8s linear infinite;
-            z-index: 50;
+        @keyframes drawer-out {
+            from {
+                transform: translateX(0);
+            }
+
+            to {
+                transform: translateX(100%);
+            }
         }
 
-        .is-running #scanBtn {
+        @keyframes fade-in {
+            from {
+                opacity: 0;
+            }
+
+            to {
+                opacity: 1;
+            }
+        }
+
+        @keyframes fade-out {
+            from {
+                opacity: 1;
+            }
+
+            to {
+                opacity: 0;
+            }
+        }
+
+        #drawer.open {
+            animation: drawer-in 0.3s cubic-bezier(0.16, 1, 0.3, 1);
+        }
+
+        #drawer.closing {
+            animation: drawer-out 0.25s ease-in forwards;
+        }
+
+        #backdrop.open {
+            animation: fade-in 0.25s ease-out;
+        }
+
+        #backdrop.closing {
+            animation: fade-out 0.2s ease-in forwards;
+        }
+
+        @keyframes dot-pulse {
+
+            0%,
+            100% {
+                opacity: 1;
+            }
+
+            50% {
+                opacity: 0.3;
+            }
+        }
+
+        .status-dot {
+            width: 6px;
+            height: 6px;
+            border-radius: 50%;
+            display: inline-block;
+            margin-right: 6px;
+        }
+
+        .status-dot.idle {
+            background: #8b938e;
+        }
+
+        .status-dot.running {
             background: #7ea392;
-            color: #070809;
-            animation: pulse-sage 1.2s ease-out infinite;
+            animation: dot-pulse 1s ease-in-out infinite;
         }
 
-        .card-enter {
-            animation: card-in 0.35s ease-out both;
+        .status-dot.done {
+            background: #7ea392;
         }
 
-        #drawer:not(.hidden) {
-            animation: drawer-in 0.25s ease-out;
+        .status-dot.demo {
+            background: #c4a574;
+        }
+
+        .status-dot.error {
+            background: #c45c4a;
+        }
+
+        .status-dot.cancelled {
+            background: #c4a574;
+        }
+
+        @keyframes toast-in {
+            from {
+                opacity: 0;
+                transform: translateY(12px) scale(0.95);
+            }
+
+            to {
+                opacity: 1;
+                transform: translateY(0) scale(1);
+            }
+        }
+
+        @keyframes toast-out {
+            to {
+                opacity: 0;
+                transform: translateY(-8px) scale(0.95);
+            }
+        }
+
+        .toast {
+            animation: toast-in 0.3s cubic-bezier(0.16, 1, 0.3, 1);
+        }
+
+        .toast.leaving {
+            animation: toast-out 0.25s ease-in forwards;
+        }
+
+        #log {
+            max-height: 220px;
+            overflow-y: auto;
+            scroll-behavior: smooth;
+        }
+
+        #log::-webkit-scrollbar {
+            width: 4px;
+        }
+
+        #log::-webkit-scrollbar-track {
+            background: transparent;
+        }
+
+        #log::-webkit-scrollbar-thumb {
+            background: #1c2124;
+            border-radius: 2px;
+        }
+
+        @keyframes stat-in {
+            from {
+                opacity: 0;
+                transform: translateY(6px);
+            }
+
+            to {
+                opacity: 1;
+                transform: translateY(0);
+            }
+        }
+
+        .stat-enter {
+            animation: stat-in 0.4s cubic-bezier(0.16, 1, 0.3, 1) both;
+        }
+
+        button,
+        a.btn {
+            transition: all 0.15s ease;
+        }
+
+        @keyframes spin {
+            to {
+                transform: rotate(360deg);
+            }
+        }
+
+        .spinner {
+            display: inline-block;
+            width: 12px;
+            height: 12px;
+            border: 2px solid transparent;
+            border-top-color: currentColor;
+            border-radius: 50%;
+            animation: spin 0.6s linear infinite;
+            margin-right: 6px;
+            vertical-align: middle;
         }
     </style>
 </head>
 
 <body class="bg-void text-ink font-sans min-h-screen">
     <div id="scanline" class="hidden scanline"></div>
+    <div id="toasts" class="fixed bottom-6 right-6 flex flex-col gap-2 z-[60]"></div>
+
     <div class="max-w-6xl mx-auto px-6 py-10">
         <header class="flex items-end justify-between border-b border-line pb-6 mb-8">
             <div>
                 <p class="font-mono text-xs tracking-[0.35em] text-sage uppercase">Blume / local node</p>
-                <h1 class="text-3xl font-semibold tracking-tight mt-1">ctOS Profiler</h1>
+                <h1 class="text-3xl font-semibold tracking-tight mt-1 relative glitch" data-text="ctOS Profiler">ctOS
+                    Profiler</h1>
                 <p class="text-mute text-sm mt-1">Beta v1 — authorized LAN visibility only</p>
             </div>
-            <span id="status" class="font-mono text-xs text-mute">idle</span>
+            <div id="statusWrap" class="flex items-center">
+                <span id="statusDot" class="status-dot idle"></span>
+                <span id="status" class="font-mono text-xs text-mute transition-all duration-300">idle</span>
+            </div>
         </header>
 
         <section class="grid md:grid-cols-2 gap-6 mb-8">
-            <div class="bg-panel border border-line p-5">
+            <div class="bg-panel border border-line rounded-sm p-5">
                 <p class="font-mono text-[11px] text-mute uppercase tracking-widest mb-3">Authorization gate</p>
                 <label class="block text-xs text-mute mb-1">CIDR</label>
                 <input id="cidr" placeholder="192.168.1.0/24"
-                    class="w-full bg-void border border-line px-3 py-2 font-mono text-sm outline-none focus:border-sage" />
-                <label class="flex items-start gap-2 mt-4 text-sm text-mute">
-                    <input id="auth" type="checkbox" class="mt-1" />
-                    <span>I own this network or have written authorization to scan it.</span>
+                    class="w-full bg-void border border-line rounded-sm px-3 py-2 font-mono text-sm outline-none focus:border-sage transition-colors duration-200" />
+                <label class="flex items-start gap-2 mt-4 text-sm text-mute cursor-pointer group">
+                    <input id="auth" type="checkbox" class="mt-1 accent-sage cursor-pointer" />
+                    <span class="group-hover:text-ink transition-colors duration-200">I own this network or have written
+                        authorization to scan it.</span>
                 </label>
                 <p class="text-xs text-warn mt-3">Real scan = ping + ARP + short TCP checks on a private /24 you own.
                     Not the page URL.</p>
             </div>
-            <div class="bg-panel border border-line p-5">
+            <div class="bg-panel border border-line rounded-sm p-5">
                 <p class="font-mono text-[11px] text-mute uppercase tracking-widest mb-3">Session</p>
                 <p class="text-sm text-mute mb-4">Check the box + CIDR to enable Scan. Demo still works anytime.</p>
                 <div class="flex flex-wrap gap-2">
-                    <button id="scanBtn" type="button" class="px-3 py-2 bg-line text-mute text-sm">Scan</button>
+                    <button id="scanBtn" type="button"
+                        class="px-4 py-2 bg-line text-mute text-sm rounded-sm hover:bg-sage hover:text-void">Scan</button>
                     <button id="cancelBtn" type="button"
-                        class="px-3 py-2 border border-line text-mute text-sm">Cancel</button>
-                    <button id="demoBtn" type="button" class="px-3 py-2 bg-sage text-void text-sm font-medium">Demo
+                        class="px-4 py-2 border border-line text-mute text-sm rounded-sm hover:border-warn hover:text-warn">Cancel</button>
+                    <button id="demoBtn" type="button"
+                        class="px-4 py-2 bg-sage text-void text-sm font-medium rounded-sm hover:brightness-110 active:scale-[0.97]">Demo
                         data</button>
-                    <a id="exportBtn" href="/api/export" class="px-3 py-2 border border-sage text-sage text-sm">Export
-                        JSON</a>
+                    <a id="exportBtn" href="/api/export"
+                        class="btn px-4 py-2 border border-line text-mute text-sm rounded-sm opacity-40 pointer-events-none select-none"
+                        aria-disabled="true">Export JSON</a>
                 </div>
                 <p id="err" class="text-xs text-high mt-3"></p>
             </div>
         </section>
 
-        <section id="grid" class="grid sm:grid-cols-2 lg:grid-cols-3 gap-4"></section>
-        <p id="empty" class="text-mute text-sm mt-2">No nodes. Load demo or run a scan.</p>
+        <section id="stats" class="hidden mb-6">
+            <div class="flex flex-wrap gap-4">
+                <div class="stat-enter bg-panel border border-line rounded-sm px-4 py-3 flex-1 min-w-[140px]"
+                    style="animation-delay:0s">
+                    <p class="font-mono text-[10px] text-mute uppercase tracking-widest">Nodes</p>
+                    <p id="statNodes" class="font-mono text-2xl text-ink mt-1">0</p>
+                </div>
+                <div class="stat-enter bg-panel border border-line rounded-sm px-4 py-3 flex-1 min-w-[140px] border-l-2 border-l-sage"
+                    style="animation-delay:0.05s">
+                    <p class="font-mono text-[10px] text-sage uppercase tracking-widest">Low</p>
+                    <p id="statLow" class="font-mono text-2xl text-sage mt-1">0</p>
+                </div>
+                <div class="stat-enter bg-panel border border-line rounded-sm px-4 py-3 flex-1 min-w-[140px] border-l-2 border-l-warn"
+                    style="animation-delay:0.1s">
+                    <p class="font-mono text-[10px] text-warn uppercase tracking-widest">Medium</p>
+                    <p id="statMed" class="font-mono text-2xl text-warn mt-1">0</p>
+                </div>
+                <div class="stat-enter bg-panel border border-line rounded-sm px-4 py-3 flex-1 min-w-[140px] border-l-2 border-l-high"
+                    style="animation-delay:0.15s">
+                    <p class="font-mono text-[10px] text-high uppercase tracking-widest">High</p>
+                    <p id="statHigh" class="font-mono text-2xl text-high mt-1">0</p>
+                </div>
+            </div>
+        </section>
 
-        <section id="log" class="mt-8 bg-panel border border-line p-4 font-mono text-xs text-mute leading-6"></section>
+        <section id="grid" class="grid sm:grid-cols-2 lg:grid-cols-3 gap-4"></section>
+
+        <div id="empty"
+            class="border-2 border-dashed border-line rounded-sm p-10 text-center mt-2 transition-opacity duration-300">
+            <div class="font-mono text-3xl text-line mb-3">⬡</div>
+            <p class="text-mute text-sm">No nodes profiled yet.</p>
+            <p class="text-mute text-xs mt-1">Load <span class="text-sage cursor-pointer hover:underline"
+                    onclick="document.getElementById('demoBtn').click()">demo data</span> or run a scan on your
+                authorized LAN.</p>
+        </div>
+
+        <section id="log" class="mt-8 bg-panel border border-line rounded-sm p-4 font-mono text-xs text-mute leading-6">
+        </section>
+
+        <p class="text-center text-mute text-[10px] font-mono mt-4 opacity-40">ESC close drawer · click card to
+            profile</p>
     </div>
 
+    <div id="backdrop" class="hidden fixed inset-0 bg-void/60 backdrop-blur-sm z-[8]"></div>
+
     <aside id="drawer"
-        class="hidden fixed inset-y-0 right-0 w-full max-w-md bg-panel border-l border-line p-6 overflow-y-auto z-10">
-        <button id="closeDrawer" class="text-mute text-sm mb-4">close</button>
-        <div id="drawerBody"></div>
+        class="hidden fixed inset-y-0 right-0 w-full max-w-md bg-panel border-l border-line overflow-y-auto z-10">
+        <div
+            class="sticky top-0 bg-panel/90 backdrop-blur-sm border-b border-line px-6 py-4 flex items-center justify-between z-10">
+            <p class="font-mono text-[10px] text-sage uppercase tracking-widest">Profile</p>
+            <button id="closeDrawer"
+                class="w-8 h-8 flex items-center justify-center rounded-sm border border-line text-mute hover:border-sage hover:text-sage transition-colors duration-200 text-sm"
+                title="Close (ESC)">✕</button>
+        </div>
+        <div id="drawerBody" class="px-6 py-5"></div>
     </aside>
 
     <script>
-        const edge = { low: "border-l-sage", medium: "border-l-warn", high: "border-l-high" };
-        const badge = {
-            low: "border-line text-mute",
-            medium: "border-warn text-warn",
-            high: "border-high text-high",
+        const edgeCls = { low: "border-l-sage", medium: "border-l-warn", high: "border-l-high" };
+        const badgeCls = {
+            low: "border-sage/40 text-sage bg-sage/5",
+            medium: "border-warn/40 text-warn bg-warn/5",
+            high: "border-high/40 text-high bg-high/5",
         };
+        const levelIcon = { low: "○", medium: "◐", high: "●" };
         let timer = null;
         let lastCount = 0;
+        let hasHosts = false;
 
         async function getState() {
             const r = await fetch("/api/state");
             return r.json();
         }
 
+        function toast(msg, type = "info") {
+            const el = document.createElement("div");
+            const colors = {
+                info: "border-sage/30 text-sage",
+                warn: "border-warn/30 text-warn",
+                error: "border-high/30 text-high",
+            };
+            el.className = `toast bg-panel border ${colors[type] || colors.info} rounded-sm px-4 py-2 font-mono text-xs shadow-lg`;
+            el.textContent = msg;
+            document.getElementById("toasts").appendChild(el);
+            setTimeout(() => {
+                el.classList.add("leaving");
+                el.addEventListener("animationend", () => el.remove());
+            }, 2800);
+        }
+
+        function updateExport(enabled) {
+            const btn = document.getElementById("exportBtn");
+            if (enabled) {
+                btn.classList.remove("opacity-40", "pointer-events-none");
+                btn.classList.add("border-sage", "text-sage", "hover:bg-sage", "hover:text-void");
+                btn.removeAttribute("aria-disabled");
+            } else {
+                btn.classList.add("opacity-40", "pointer-events-none");
+                btn.classList.remove("border-sage", "text-sage", "hover:bg-sage", "hover:text-void");
+                btn.setAttribute("aria-disabled", "true");
+            }
+        }
+
         function setRunning(on) {
             document.body.classList.toggle("is-running", on);
             document.getElementById("scanline").classList.toggle("hidden", !on);
-            document.getElementById("scanBtn").textContent = on ? "Profiling…" : "Scan";
+            document.getElementById("scanBtn").innerHTML = on
+                ? '<span class="spinner"></span>Profiling…'
+                : "Scan";
+        }
+
+        function updateStats(hosts) {
+            const el = document.getElementById("stats");
+            if (!hosts || hosts.length === 0) {
+                el.classList.add("hidden");
+                return;
+            }
+            el.classList.remove("hidden");
+            document.getElementById("statNodes").textContent = hosts.length;
+            document.getElementById("statLow").textContent = hosts.filter(h => h.level === "low").length;
+            document.getElementById("statMed").textContent = hosts.filter(h => h.level === "medium").length;
+            document.getElementById("statHigh").textContent = hosts.filter(h => h.level === "high").length;
+        }
+
+        function updateStatus(status) {
+            const dot = document.getElementById("statusDot");
+            const txt = document.getElementById("status");
+            dot.className = "status-dot " + (status || "idle");
+            txt.textContent = status || "idle";
+        }
+
+        function esc(str) {
+            const el = document.createElement("span");
+            el.textContent = str || "";
+            return el.innerHTML;
         }
 
         function render(state) {
-            document.getElementById("status").textContent = state.status || "idle";
+            updateStatus(state.status);
             setRunning(state.status === "running");
-            document.getElementById("log").innerHTML = (state.log || []).map((l) => `<p>${l}</p>`).join("");
+
+            const logEl = document.getElementById("log");
+            logEl.innerHTML = (state.log || []).map(l => `<p>${esc(l)}</p>`).join("");
+            logEl.scrollTop = logEl.scrollHeight;
+
             const grid = document.getElementById("grid");
             const hosts = state.hosts || [];
-            document.getElementById("empty").style.display = hosts.length ? "none" : "block";
+            const empty = document.getElementById("empty");
+            empty.style.display = hosts.length ? "none" : "block";
+
+            hasHosts = hosts.length > 0;
+            updateExport(hasHosts);
+            updateStats(hosts);
+
             if (hosts.length < lastCount) grid.innerHTML = "";
-            const have = new Set([...grid.querySelectorAll("[data-ip]")].map((n) => n.dataset.ip));
+            const have = new Set([...grid.querySelectorAll("[data-ip]")].map(n => n.dataset.ip));
+
             hosts.forEach((h, i) => {
                 if (have.has(h.ip)) return;
                 const el = document.createElement("article");
                 el.dataset.ip = h.ip;
-                el.className = `card-enter bg-panel border border-line border-l-2 ${edge[h.level] || "border-l-line"} p-4 cursor-pointer`;
-                el.style.animationDelay = Math.min(i, 8) * 0.05 + "s";
+                el.className = `host-card card-enter bg-panel border border-line border-l-2 ${edgeCls[h.level] || "border-l-line"} rounded-sm p-4 cursor-pointer`;
+                el.style.animationDelay = Math.min(i, 8) * 0.06 + "s";
                 el.innerHTML = `
           <div class="flex justify-between items-start">
-            <p class="font-mono text-lg">${h.ip}</p>
-            <span class="text-[10px] font-mono uppercase tracking-wider ${h.is_self ? "text-sage" : "text-mute"}">${h.is_self ? "you" : "node"}</span>
+            <p class="font-mono text-lg">${esc(h.ip)}</p>
+            <span class="text-[10px] font-mono uppercase tracking-wider px-2 py-0.5 rounded-sm border ${h.is_self ? "border-sage/40 text-sage bg-sage/5" : "border-line text-mute"}">${h.is_self ? "you" : "node"}</span>
           </div>
-          <p class="text-xs text-mute mt-1">hostname · ${h.hostname || "—"}</p>
-          <p class="font-mono text-xs text-mute mt-3">${h.mac || "—"}</p>
-          <p class="text-xs text-mute">vendor · ${h.vendor || "—"}</p>
+          <p class="text-xs text-mute mt-1">hostname · ${esc(h.hostname) || "—"}</p>
+          <p class="font-mono text-xs text-mute mt-3">${esc(h.mac) || "—"}</p>
+          <p class="text-xs text-mute">vendor · ${esc(h.vendor) || "—"}</p>
           <div class="mt-4 flex items-center justify-between">
-            <span class="text-[10px] font-mono uppercase tracking-wider px-2 py-1 border ${badge[h.level] || ""}">${h.level}</span>
-            <span class="font-mono text-xs text-mute">${(h.ports || []).map((p) => p.port).join(" ") || "—"}</span>
+            <span class="text-[10px] font-mono uppercase tracking-wider px-2 py-1 rounded-sm border ${badgeCls[h.level] || ""}">${levelIcon[h.level] || ""} ${esc(h.level)}</span>
+            <span class="font-mono text-xs text-mute">${(h.ports || []).map(p => esc(String(p.port))).join(" ") || "—"}</span>
           </div>`;
                 el.onclick = () => openProfile(h);
                 grid.appendChild(el);
             });
+
             lastCount = hosts.length;
             if (state.status === "running") startPoll();
             else stopPoll();
         }
 
         function openProfile(h) {
-            document.getElementById("drawer").classList.remove("hidden");
-            const ports = (h.ports || []).map((p) => `<li class="font-mono">${p.port} ${p.name} · ${p.state}</li>`).join("");
-            const reasons = (h.reasons || []).map((r) => `<li>${r}</li>`).join("");
+            const drawer = document.getElementById("drawer");
+            const backdrop = document.getElementById("backdrop");
+            drawer.classList.remove("hidden", "closing");
+            drawer.classList.add("open");
+            backdrop.classList.remove("hidden", "closing");
+            backdrop.classList.add("open");
+
+            const ports = (h.ports || []).map(p =>
+                `<li class="font-mono flex items-center gap-2">
+                    <span class="w-12 text-right text-sage">${esc(String(p.port))}</span>
+                    <span class="text-mute">│</span>
+                    <span>${esc(p.name)}</span>
+                    <span class="text-[10px] uppercase px-1.5 py-0.5 rounded-sm border ${p.state === "open" ? "border-high/30 text-high bg-high/5" : "border-line text-mute"}">${esc(p.state)}</span>
+                </li>`
+            ).join("");
+
+            const reasons = (h.reasons || []).map(r =>
+                `<li class="flex items-start gap-2"><span class="text-high mt-0.5">▸</span> ${esc(r)}</li>`
+            ).join("");
+
             document.getElementById("drawerBody").innerHTML = `
-        <p class="font-mono text-[11px] text-sage uppercase tracking-widest">profile</p>
-        <h2 class="font-mono text-2xl mt-1">${h.ip}</h2>
-        <p class="text-sm text-mute mt-2">${h.hostname || "—"} · ${h.vendor || "—"}</p>
-        <p class="font-mono text-xs text-mute mt-2">${h.mac || "—"}</p>
-        <p class="mt-4 text-[10px] font-mono uppercase tracking-wider inline-block px-2 py-1 border ${badge[h.level] || ""}">${h.level} · ${h.score}</p>
-        <p class="mt-6 text-xs text-mute uppercase tracking-widest">ports</p>
-        <ul class="mt-2 text-sm space-y-1">${ports || "<li>—</li>"}</ul>
-        <p class="mt-6 text-xs text-mute uppercase tracking-widest">reasons</p>
-        <ul class="mt-2 text-sm space-y-1 list-disc list-inside">${reasons || "<li>—</li>"}</ul>`;
+        <h2 class="font-mono text-2xl mt-1">${esc(h.ip)}</h2>
+        <p class="text-sm text-mute mt-2">${esc(h.hostname) || "—"} · ${esc(h.vendor) || "—"}</p>
+        <p class="font-mono text-xs text-mute mt-2">${esc(h.mac) || "—"}</p>
+        <div class="mt-5 inline-flex items-center gap-2 text-[10px] font-mono uppercase tracking-wider px-3 py-1.5 rounded-sm border ${badgeCls[h.level] || ""}">
+            <span class="text-base">${levelIcon[h.level] || ""}</span>
+            <span>${esc(h.level)} · score ${h.score}</span>
+        </div>
+        <div class="mt-6">
+            <p class="text-xs text-mute uppercase tracking-widest mb-2">Open ports</p>
+            <ul class="text-sm space-y-1.5">${ports || '<li class="text-mute">—</li>'}</ul>
+        </div>
+        <div class="mt-6">
+            <p class="text-xs text-mute uppercase tracking-widest mb-2">Exposure reasons</p>
+            <ul class="text-sm space-y-1.5">${reasons || '<li class="text-mute">—</li>'}</ul>
+        </div>
+        ${h.is_self ? '<p class="mt-6 text-[10px] font-mono text-sage uppercase tracking-widest border border-sage/20 rounded-sm px-3 py-2 text-center">This is your machine</p>' : ""}`;
+        }
+
+        function closeDrawer() {
+            const drawer = document.getElementById("drawer");
+            const backdrop = document.getElementById("backdrop");
+            drawer.classList.remove("open");
+            drawer.classList.add("closing");
+            backdrop.classList.remove("open");
+            backdrop.classList.add("closing");
+            drawer.addEventListener("animationend", () => {
+                drawer.classList.add("hidden");
+                drawer.classList.remove("closing");
+            }, { once: true });
+            backdrop.addEventListener("animationend", () => {
+                backdrop.classList.add("hidden");
+                backdrop.classList.remove("closing");
+            }, { once: true });
         }
 
         function startPoll() {
             if (timer) return;
             timer = setInterval(async () => render(await getState()), 400);
         }
+
         function stopPoll() {
             if (timer) clearInterval(timer);
             timer = null;
         }
 
-        document.getElementById("closeDrawer").onclick = () => {
-            document.getElementById("drawer").classList.add("hidden");
-        };
+        async function clearGrid() {
+            const grid = document.getElementById("grid");
+            const cards = grid.querySelectorAll(".host-card");
+            if (cards.length === 0) return;
+            cards.forEach((c, i) => {
+                c.style.animationDelay = i * 0.03 + "s";
+                c.classList.add("card-exit");
+            });
+            await new Promise(r => setTimeout(r, 300));
+            grid.innerHTML = "";
+        }
+
+        document.getElementById("closeDrawer").onclick = closeDrawer;
+        document.getElementById("backdrop").onclick = closeDrawer;
+        document.addEventListener("keydown", (e) => {
+            if (e.key === "Escape") closeDrawer();
+        });
 
         document.getElementById("demoBtn").onclick = async () => {
+            const btn = document.getElementById("demoBtn");
+            btn.disabled = true;
+            btn.innerHTML = '<span class="spinner"></span>Loading…';
             document.getElementById("err").textContent = "";
+            await clearGrid();
             lastCount = 0;
-            document.getElementById("grid").innerHTML = "";
             await fetch("/api/demo", { method: "POST" });
             render(await getState());
+            btn.disabled = false;
+            btn.textContent = "Demo data";
+            toast("Demo profile loaded — 3 synthetic hosts", "info");
         };
 
         document.getElementById("scanBtn").onclick = async () => {
@@ -267,20 +749,31 @@
             const data = await r.json();
             if (!r.ok) {
                 document.getElementById("err").textContent = data.error || "scan blocked";
+                toast(data.error || "Scan blocked", "error");
                 return;
             }
+            await clearGrid();
             lastCount = 0;
-            document.getElementById("grid").innerHTML = "";
             startPoll();
             render(await getState());
+            toast("Scan started on " + cidr, "info");
         };
 
         document.getElementById("cancelBtn").onclick = async () => {
             await fetch("/api/cancel", { method: "POST" });
             render(await getState());
+            toast("Scan cancelled", "warn");
         };
 
-        getState().then(render);
+        async function boot() {
+            await fetch("/api/clear", { method: "POST" });
+            lastCount = 0;
+            hasHosts = false;
+            const grid = document.getElementById("grid");
+            if (grid) grid.innerHTML = "";
+            render(await getState());
+        }
+        boot();
     </script>
 </body>
 
