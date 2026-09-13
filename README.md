@@ -52,5 +52,4 @@ python app.py
 <pre>
 python -m pytest test/test_cidr.py -q
 </pre>
-<h3>★ License</h3>
-MIT. See LICENSE.
+
