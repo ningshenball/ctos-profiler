@@ -8,7 +8,7 @@
 <br/>
 
 <details>
-  <summary><b>Ethical Use Disclaimer</b></summary>
+  <summary><b>Ethical Use Disclaimer( -_•)</b></summary>
   <br/>
   <p align="center">
     <b>Demo first. Real scans ONLY on networks you own or have written permission to test.</b><br/>
