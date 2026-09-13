@@ -19,7 +19,6 @@
 <b>ctOS Profiler</b> is a localhost Watch Dogs–style profiler.
 Start in demo mode, then scan a private /24 you actually own.
 Ping + ARP + a short TCP list. No Nmap engine. No packet capture. No exploits.
-
 <h3>★ Features <img src="explode.webp" height="38" alt=""/></h3>
 ✦ <b>Localhost only</b> — binds to 127.0.0.1:8787<br/>
 ✦ <b>Demo mode first</b> — fake hosts before anything live<br/>
@@ -27,29 +26,31 @@ Ping + ARP + a short TCP list. No Nmap engine. No packet capture. No exploits.
 ✦ <b>Live grid</b> — vendor, ports, low/med/high badge, profile drawer<br/>
 ✦ <b>Export JSON</b> — last scan as a file<br/>
 ✦ <b>/docs</b> — FastAPI OpenAPI for the scan body
-
 <h3>★ Built With</h3>
 <p>
   <img src="https://skillicons.dev/icons?i=python,fastapi" />
 </p>
-
 <h3>★ How to Run <img src="cupcake.webp" height="58" alt=""/></h3>
-
-```powershell
+Windows:
+<pre>
 git clone https://github.com/ningshenball/ctos-profiler.git
 cd ctos-profiler
 python -m venv .venv
 .\.venv\Scripts\Activate.ps1
 python -m pip install -r requirements.txt
 python app.py
-```
-Open http://127.0.0.1:8787
-
-Docs: http://127.0.0.1:8787/docs
-Bash# linux / mac
+</pre>
+Open http://127.0.0.1:8787 and http://127.0.0.1:8787/docs
+Linux / mac:
+<pre>
 python -m venv .venv
 source .venv/bin/activate
 pip install -r requirements.txt
 python app.py
-★ Tests
-PowerShellpython -m pytest test/test_cidr.py -q
+</pre>
+<h3>★ Tests</h3>
+<pre>
+python -m pytest test/test_cidr.py -q
+</pre>
+<h3>★ License</h3>
+MIT. See LICENSE.
