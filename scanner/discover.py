@@ -8,6 +8,7 @@ import re
 import socket
 import subprocess
 import threading
+import uuid
 from concurrent.futures import ThreadPoolExecutor, as_completed
 
 from scanner.ports import probe
@@ -17,6 +18,8 @@ from scanner.vendor import vendor_of
 MAC_RE = re.compile(
     r"(\d{1,3}(?:\.\d{1,3}){3})\s+([0-9a-fA-F]{2}(?:[-:][0-9a-fA-F]{2}){5})"
 )
+PHYS_RE = re.compile(r"Physical Address[.\s]*:\s*([0-9A-Fa-f-]{17})")
+IP_RE = re.compile(r"IPv4 Address[.\s]*:\s*(\d{1,3}(?:\.\d{1,3}){3})")
 
 
 def require_small_private(cidr: str) -> ipaddress.IPv4Network:
@@ -43,6 +46,30 @@ def local_ipv4() -> str | None:
         s.close()
 
 
+def _mac_from_uuid() -> str:
+    n = uuid.getnode()
+    return ":".join(f"{(n >> i) & 0xFF:02X}" for i in range(40, -1, -8))
+
+
+def local_mac(self_ip: str | None) -> str:
+    if os.name == "nt" and self_ip:
+        try:
+            raw = subprocess.check_output(
+                ["ipconfig", "/all"], text=True, timeout=8, errors="ignore"
+            )
+        except (OSError, subprocess.TimeoutExpired):
+            raw = ""
+        block_mac = ""
+        for line in raw.splitlines():
+            m = PHYS_RE.search(line)
+            if m:
+                block_mac = m.group(1).replace("-", ":").upper()
+            i = IP_RE.search(line)
+            if i and i.group(1) == self_ip and block_mac:
+                return block_mac
+    return _mac_from_uuid()
+
+
 def _ping(ip: str) -> bool:
     if os.name == "nt":
         cmd = ["ping", "-n", "1", "-w", "400", ip]
@@ -58,6 +85,10 @@ def _ping(ip: str) -> bool:
         return r.returncode == 0
     except (OSError, subprocess.TimeoutExpired):
         return False
+
+
+def _is_broadcast(ip: str, mac: str) -> bool:
+    return ip.endswith(".255") or mac == "FF:FF:FF:FF:FF:FF"
 
 
 def _arp_table() -> dict[str, str]:
@@ -83,6 +114,7 @@ def _hostname(ip: str) -> str:
 def discover(cidr: str, cancel: threading.Event, on_host, on_log) -> None:
     net = require_small_private(cidr)
     self_ip = local_ipv4()
+    self_mac = local_mac(self_ip)
     on_log(f"[scan] ping sweep {net} (own LAN only)")
     targets = [str(h) for h in net.hosts()]
     live: list[str] = []
@@ -105,18 +137,16 @@ def discover(cidr: str, cancel: threading.Event, on_host, on_log) -> None:
     table = _arp_table()
     for ip, mac in table.items():
         try:
+            if _is_broadcast(ip, mac):
+                continue
             if ipaddress.ip_address(ip) in net and ip not in live:
                 live.append(ip)
                 on_log(f"[arp] {ip}")
         except ValueError:
             pass
 
-    live = sorted(live, key=lambda x: tuple(int(p) for p in x.split(".")))
-    live = [
-        ip
-        for ip in live
-        if not ip.endswith(".255") and table.get(ip, "") != "FF:FF:FF:FF:FF:FF"
-    ]
+    live = sorted(set(live), key=lambda x: tuple(int(p) for p in x.split(".")))
+    live = [ip for ip in live if not _is_broadcast(ip, table.get(ip, ""))]
 
     for ip in live:
         if cancel.is_set():
@@ -126,6 +156,8 @@ def discover(cidr: str, cancel: threading.Event, on_host, on_log) -> None:
         ports = probe(ip)
         total, level, reasons = score_host(ports)
         mac = table.get(ip, "")
+        if ip == self_ip and not mac:
+            mac = self_mac
         host = {
             "ip": ip,
             "mac": mac,
