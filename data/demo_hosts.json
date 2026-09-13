@@ -4,22 +4,30 @@
     "status": "demo",
     "hosts": [
         {
+            "ip": "192.168.1.1",
+            "mac": "D4:6E:0E:A1:B2:C3",
+            "vendor": "TP-Link",
+            "hostname": "gateway",
+            "ports": [
+                {"port": 80, "name": "http", "state": "open"},
+                {"port": 443, "name": "https", "state": "open"}
+            ],
+            "score": 12,
+            "level": "low",
+            "reasons": ["HTTP exposed", "HTTPS exposed"],
+            "is_self": false
+        },
+        {
             "ip": "192.168.1.10",
             "mac": "AA:BB:CC:11:22:33",
-            "vendor": "unknown",
+            "vendor": "Intel Corporate",
             "hostname": "this-pc",
             "ports": [
-                {
-                    "port": 22,
-                    "name": "ssh",
-                    "state": "open"
-                }
+                {"port": 22, "name": "ssh", "state": "open"}
             ],
             "score": 10,
             "level": "low",
-            "reasons": [
-                "SSH on local host"
-            ],
+            "reasons": ["SSH on local host"],
             "is_self": true
         },
         {
@@ -28,60 +36,62 @@
             "vendor": "Raspberry Pi Foundation",
             "hostname": "pi-lab",
             "ports": [
-                {
-                    "port": 22,
-                    "name": "ssh",
-                    "state": "open"
-                },
-                {
-                    "port": 80,
-                    "name": "http",
-                    "state": "open"
-                }
+                {"port": 22, "name": "ssh", "state": "open"},
+                {"port": 80, "name": "http", "state": "open"},
+                {"port": 8080, "name": "http-alt", "state": "open"}
             ],
-            "score": 18,
+            "score": 26,
             "level": "medium",
-            "reasons": [
-                "SSH exposed",
-                "HTTP exposed"
-            ],
+            "reasons": ["SSH exposed", "HTTP exposed", "HTTP-ALT exposed"],
+            "is_self": false
+        },
+        {
+            "ip": "192.168.1.18",
+            "mac": "3C:22:FB:77:88:99",
+            "vendor": "Apple Inc",
+            "hostname": "macbook-pro",
+            "ports": [],
+            "score": 0,
+            "level": "low",
+            "reasons": [],
             "is_self": false
         },
         {
             "ip": "192.168.1.23",
             "mac": "00:11:22:33:44:55",
-            "vendor": "demo",
+            "vendor": "Synology",
             "hostname": "old-nas",
             "ports": [
-                {
-                    "port": 21,
-                    "name": "ftp",
-                    "state": "open"
-                },
-                {
-                    "port": 23,
-                    "name": "telnet",
-                    "state": "open"
-                },
-                {
-                    "port": 445,
-                    "name": "smb",
-                    "state": "open"
-                }
+                {"port": 21, "name": "ftp", "state": "open"},
+                {"port": 23, "name": "telnet", "state": "open"},
+                {"port": 445, "name": "smb", "state": "open"},
+                {"port": 5900, "name": "vnc", "state": "open"}
             ],
-            "score": 85,
+            "score": 105,
             "level": "high",
-            "reasons": [
-                "Telnet exposed",
-                "FTP exposed",
-                "SMB exposed"
+            "reasons": ["Telnet exposed", "FTP exposed", "SMB exposed", "VNC exposed"],
+            "is_self": false
+        },
+        {
+            "ip": "192.168.1.42",
+            "mac": "DC:A6:32:AA:BB:CC",
+            "vendor": "Raspberry Pi Trading",
+            "hostname": "pi-cam",
+            "ports": [
+                {"port": 22, "name": "ssh", "state": "open"},
+                {"port": 80, "name": "http", "state": "open"},
+                {"port": 3389, "name": "rdp", "state": "open"}
             ],
+            "score": 43,
+            "level": "high",
+            "reasons": ["SSH exposed", "HTTP exposed", "RDP exposed"],
             "is_self": false
         }
     ],
     "log": [
         "[boot] ctOS profiler slice 2",
-        "[demo] loaded 3 synthetic hosts",
+        "[demo] loaded 6 synthetic hosts",
+        "[info] 3 low · 1 medium · 2 high",
         "[warn] do not scan networks you do not own"
     ]
 }
