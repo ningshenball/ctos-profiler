@@ -19,11 +19,11 @@
 
 <br/>
 
-<h3>★ About</h3>
+<h3>★ About <img src="ralsei.webp" height="40" alt=""/></h3>
 <b>ctOS Profiler</b> is a lightweight LAN visibility tool that runs on localhost.
 Start in demo mode to see the flow, then scan networks you actually own.
 
-<h3>★ Features</h3>
+<h3>★ Features <img src="explode.webp" height="28" alt=""/></h3>
 
 ✦ <b>Localhost only</b> — stays on your machine<br/>
 ✦ <b>Demo mode first</b> — mock data before anything live<br/>
@@ -35,7 +35,7 @@ Start in demo mode to see the flow, then scan networks you actually own.
   <img src="https://skillicons.dev/icons?i=python,linux,bash" />
 </p>
 
-<h3>★ How to Run</h3>
+<h3>★ How to Run <img src="cupcake.webp" height="48" alt=""/></h3>
 
 ```bash
 git clone https://github.com/ningshenball/ctos-profiler.git
