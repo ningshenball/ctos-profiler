@@ -1,9 +1,7 @@
-<div align="center">
-  <img src="https://capsule-render.vercel.app/api?type=waving&color=ff69b4&height=120&section=header&text=ctOS+Profiler&fontSize=36&fontColor=ffffff&animation=twinkling" alt="ctOS Profiler Header"/>
-  
+
   <p align="center">
     <!-- YOUR NEW CHARACTER HERE! -->
-    <img src="y2k-char.gif" height="150" alt="y2k character"/>
+    <img src="noelle" height="150" alt="y2k character"/>
     <br/>
     <img src="https://media.giphy.com/media/3o7TKSjRrfIPjeiVyM/giphy.gif" height="24" alt="sparkles"/>
   </p>
