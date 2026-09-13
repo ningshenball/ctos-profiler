@@ -1,36 +1,34 @@
 <div align="center">
-  <img src="y2k-char.gif" height="150" alt="character"/>
-  
+  <img src="noelle.gif" height="140" alt="noelle"/>
   <h1>ctOS Profiler</h1>
-  
-  <p>Local authorized LAN visibility tool. Localhost only.</p>
-  
-  <img src="under-construction.gif" height="60" alt="under construction"/>
+  <p>Local authorized LAN visibility tool. <b>Localhost only.</b></p>
+  <img src="construction.gif" alt="under construction"/>
 </div>
 
 <br/>
 
 <details>
-  <summary><b>️ Ethical Use Disclaimer</b></summary>
+  <summary><b>Ethical Use Disclaimer</b></summary>
   <br/>
   <p align="center">
     <b>Demo first. Real scans ONLY on networks you own or have written permission to test.</b><br/>
-    This tool is for educational purposes and authorized local network analysis only.<br/>
-    Unauthorized scanning is illegal. ദ്ദി ⩊ ◜.ᐟ
+    Educational / authorized local analysis only. Unauthorized scanning is illegal.<br/>
+    ദ്ദി◝ ⩊ ◜.ᐟ
   </p>
 </details>
 
 <br/>
 
 <h3>★ About</h3>
-<b>ctOS Profiler</b> is a lightweight LAN visibility tool designed to run on localhost. 
-Start with demo mode to see how it works, then run real scans on your own networks only.
+<b>ctOS Profiler</b> is a lightweight LAN visibility tool that runs on localhost.
+Start in demo mode to see the flow, then scan networks you actually own.
 
 <h3>★ Features</h3>
-✦ <b>Localhost only</b> - Runs safely on your local machine<br/>
-✦ <b>Demo mode first</b> - Test with mock data before live scanning<br/>
-✦ <b>LAN visibility</b> - Discover and profile authorized devices<br/>
-✦ <b>Lightweight & simple</b> - Easy to use
+
+✦ <b>Localhost only</b> — stays on your machine<br/>
+✦ <b>Demo mode first</b> — mock data before anything live<br/>
+✦ <b>LAN visibility</b> — profile devices you're allowed to see<br/>
+✦ <b>Lightweight</b> — small CLI, no extra dashboard required
 
 <h3>★ Built With</h3>
 <p>
@@ -40,12 +38,11 @@ Start with demo mode to see how it works, then run real scans on your own networ
 <h3>★ How to Run</h3>
 
 ```bash
-# Clone the repo
 git clone https://github.com/ningshenball/ctos-profiler.git
 cd ctos-profiler
 
-# Run demo mode (recommended first!)
+# demo first
 python main.py --demo
 
-# Run real scan (ONLY on networks you own/have permission for)
+# real scan — only on networks you own / have permission for
 python main.py --scan
