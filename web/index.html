@@ -31,9 +31,86 @@
             },
         };
     </script>
+    <style>
+        @keyframes scanline {
+            0% {
+                transform: translateY(-100%);
+                opacity: 0;
+            }
+
+            20% {
+                opacity: 0.35;
+            }
+
+            100% {
+                transform: translateY(100vh);
+                opacity: 0;
+            }
+        }
+
+        @keyframes pulse-sage {
+
+            0%,
+            100% {
+                box-shadow: 0 0 0 0 rgba(126, 163, 146, 0.45);
+            }
+
+            50% {
+                box-shadow: 0 0 0 8px rgba(126, 163, 146, 0);
+            }
+        }
+
+        @keyframes card-in {
+            from {
+                opacity: 0;
+                transform: translateY(8px);
+            }
+
+            to {
+                opacity: 1;
+                transform: translateY(0);
+            }
+        }
+
+        @keyframes drawer-in {
+            from {
+                transform: translateX(100%);
+            }
+
+            to {
+                transform: translateX(0);
+            }
+        }
+
+        .scanline {
+            pointer-events: none;
+            position: fixed;
+            left: 0;
+            right: 0;
+            height: 80px;
+            background: linear-gradient(to bottom, transparent, rgba(126, 163, 146, 0.12), transparent);
+            animation: scanline 2.8s linear infinite;
+            z-index: 50;
+        }
+
+        .is-running #scanBtn {
+            background: #7ea392;
+            color: #070809;
+            animation: pulse-sage 1.2s ease-out infinite;
+        }
+
+        .card-enter {
+            animation: card-in 0.35s ease-out both;
+        }
+
+        #drawer:not(.hidden) {
+            animation: drawer-in 0.25s ease-out;
+        }
+    </style>
 </head>
 
 <body class="bg-void text-ink font-sans min-h-screen">
+    <div id="scanline" class="hidden scanline"></div>
     <div class="max-w-6xl mx-auto px-6 py-10">
         <header class="flex items-end justify-between border-b border-line pb-6 mb-8">
             <div>
@@ -93,22 +170,34 @@
             high: "border-high text-high",
         };
         let timer = null;
+        let lastCount = 0;
 
         async function getState() {
             const r = await fetch("/api/state");
             return r.json();
         }
 
+        function setRunning(on) {
+            document.body.classList.toggle("is-running", on);
+            document.getElementById("scanline").classList.toggle("hidden", !on);
+            document.getElementById("scanBtn").textContent = on ? "Profiling…" : "Scan";
+        }
+
         function render(state) {
             document.getElementById("status").textContent = state.status || "idle";
+            setRunning(state.status === "running");
             document.getElementById("log").innerHTML = (state.log || []).map((l) => `<p>${l}</p>`).join("");
             const grid = document.getElementById("grid");
-            grid.innerHTML = "";
             const hosts = state.hosts || [];
             document.getElementById("empty").style.display = hosts.length ? "none" : "block";
-            hosts.forEach((h) => {
+            if (hosts.length < lastCount) grid.innerHTML = "";
+            const have = new Set([...grid.querySelectorAll("[data-ip]")].map((n) => n.dataset.ip));
+            hosts.forEach((h, i) => {
+                if (have.has(h.ip)) return;
                 const el = document.createElement("article");
-                el.className = `bg-panel border border-line border-l-2 ${edge[h.level] || "border-l-line"} p-4 cursor-pointer`;
+                el.dataset.ip = h.ip;
+                el.className = `card-enter bg-panel border border-line border-l-2 ${edge[h.level] || "border-l-line"} p-4 cursor-pointer`;
+                el.style.animationDelay = Math.min(i, 8) * 0.05 + "s";
                 el.innerHTML = `
           <div class="flex justify-between items-start">
             <p class="font-mono text-lg">${h.ip}</p>
@@ -124,6 +213,7 @@
                 el.onclick = () => openProfile(h);
                 grid.appendChild(el);
             });
+            lastCount = hosts.length;
             if (state.status === "running") startPoll();
             else stopPoll();
         }
@@ -159,6 +249,8 @@
 
         document.getElementById("demoBtn").onclick = async () => {
             document.getElementById("err").textContent = "";
+            lastCount = 0;
+            document.getElementById("grid").innerHTML = "";
             await fetch("/api/demo", { method: "POST" });
             render(await getState());
         };
@@ -177,6 +269,8 @@
                 document.getElementById("err").textContent = data.error || "scan blocked";
                 return;
             }
+            lastCount = 0;
+            document.getElementById("grid").innerHTML = "";
             startPoll();
             render(await getState());
         };
