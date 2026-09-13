@@ -1,12 +1,10 @@
 <div align="center">
   <img src="noelle.gif" height="140" alt="noelle"/>
-  <h1>ctOS Profiler(demo)</h1>
+  <h1>ctOS Profiler</h1>
   <p>Local authorized LAN visibility tool. <b>Localhost only.</b></p>
   <img src="construction.gif" alt="under construction"/>
 </div>
-
 <br/>
-
 <details>
   <summary><b>Ethical Use Disclaimer( -_•)</b></summary>
   <br/>
@@ -16,33 +14,31 @@
     ദ്ദി◝ ⩊ ◜.ᐟ
   </p>
 </details>
-
 <br/>
-
 <h3>★ About <img src="ralsei.webp" height="50" alt=""/></h3>
-<b>ctOS Profiler</b> is a lightweight LAN visibility tool that runs on localhost.
-Start in demo mode to see the flow, then scan networks you actually own.
+<b>ctOS Profiler</b> is a localhost Watch Dogs–style profiler.
+Start in demo mode, then scan a private /24 you actually own.
+Ping + ARP + a short TCP list. No Nmap engine. No packet capture. No exploits.
 
 <h3>★ Features <img src="explode.webp" height="38" alt=""/></h3>
-
-✦ <b>Localhost only</b> — stays on your machine<br/>
-✦ <b>Demo mode first</b> — mock data before anything live<br/>
-✦ <b>LAN visibility</b> — profile devices you're allowed to see<br/>
-✦ <b>Lightweight</b> — small CLI, no extra dashboard required
+✦ <b>Localhost only</b> — binds to 127.0.0.1:8787<br/>
+✦ <b>Demo mode first</b> — fake hosts before anything live<br/>
+✦ <b>Auth gate</b> — checkbox + private /24 cap (public ranges rejected)<br/>
+✦ <b>Live grid</b> — vendor, ports, low/med/high badge, profile drawer<br/>
+✦ <b>Export JSON</b> — last scan as a file<br/>
+✦ <b>/docs</b> — FastAPI OpenAPI for the scan body
 
 <h3>★ Built With</h3>
 <p>
-  <img src="https://skillicons.dev/icons?i=python,linux,bash" />
+  <img src="https://skillicons.dev/icons?i=python,fastapi" />
 </p>
 
 <h3>★ How to Run <img src="cupcake.webp" height="58" alt=""/></h3>
 
-```bash
+```powershell
 git clone https://github.com/ningshenball/ctos-profiler.git
 cd ctos-profiler
-
-# demo first
-python main.py --demo
-
-# real scan — only on networks you own / have permission for
-python main.py --scan
+python -m venv .venv
+.\.venv\Scripts\Activate.ps1
+python -m pip install -r requirements.txt
+python app.py
