@@ -1,6 +1,6 @@
 <div align="center">
   <img src="noelle.gif" height="140" alt="noelle"/>
-  <h1>ctOS Profiler</h1>
+  <h1>ctOS Profiler(demo)</h1>
   <p>Local authorized LAN visibility tool. <b>Localhost only.</b></p>
   <img src="construction.gif" alt="under construction"/>
 </div>
