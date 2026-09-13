@@ -108,6 +108,12 @@ def discover(cidr: str, cancel: threading.Event, on_host, on_log) -> None:
             pass
 
     live = sorted(live, key=lambda x: tuple(int(p) for p in x.split(".")))
+    live = [
+        ip
+        for ip in live
+        if not ip.endswith(".255") and table.get(ip, "") != "FF:FF:FF:FF:FF:FF"
+    ]
+
     for ip in live:
         if cancel.is_set():
             on_log("[scan] cancelled")
