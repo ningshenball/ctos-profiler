@@ -20,12 +20,11 @@ MAC_RE = re.compile(
 )
 PHYS_RE = re.compile(r"Physical Address[.\s]*:\s*([0-9A-Fa-f-]{17})")
 IP_RE = re.compile(r"IPv4 Address[.\s]*:\s*(\d{1,3}(?:\.\d{1,3}){3})")
-
-def discover(cidr: str, cancel: threading.Event, on_host, on_log) -> None:
-    """Ping+ARP+short TCP probe on an already-validated private /24. Own LAN only."""
+TTL_RE = re.compile(r"ttl[=:](\d+)", re.I)
 
 
 def require_small_private(cidr: str) -> ipaddress.IPv4Network:
+    """IPv4 private range only, prefix /24 or tighter (max 256 addresses)."""
     net = ipaddress.ip_network(cidr.strip(), strict=False)
     if not isinstance(net, ipaddress.IPv4Network):
         raise ValueError("IPv4 only")
@@ -36,6 +35,18 @@ def require_small_private(cidr: str) -> ipaddress.IPv4Network:
     if net.num_addresses > 256:
         raise ValueError("range too large")
     return net
+
+
+def os_guess(ttl: int | None) -> str:
+    if ttl is None:
+        return ""
+    if ttl >= 128:
+        return "likely Windows"
+    if ttl >= 64:
+        return "likely Linux/mac"
+    if ttl >= 32:
+        return "likely embedded"
+    return ""
 
 
 def local_ipv4() -> str | None:
@@ -58,7 +69,7 @@ def local_mac(self_ip: str | None) -> str:
     if os.name == "nt" and self_ip:
         try:
             raw = subprocess.check_output(
-                ["ipconfig", "/all"], text=True, timeout=8, errors="ignore"
+                ["ipconfig", "/all"], text=True, timeout=8, encoding="utf-8", errors="ignore"
             )
         except (OSError, subprocess.TimeoutExpired):
             raw = ""
@@ -73,7 +84,7 @@ def local_mac(self_ip: str | None) -> str:
     return _mac_from_uuid()
 
 
-def _ping(ip: str) -> bool:
+def _ping(ip: str) -> tuple[bool, int | None]:
     if os.name == "nt":
         cmd = ["ping", "-n", "1", "-w", "400", ip]
     else:
@@ -81,13 +92,19 @@ def _ping(ip: str) -> bool:
     try:
         r = subprocess.run(
             cmd,
-            stdout=subprocess.DEVNULL,
-            stderr=subprocess.DEVNULL,
+            capture_output=True,
+            text=True,
             timeout=2,
+            encoding="utf-8",
+            errors="ignore",
         )
-        return r.returncode == 0
     except (OSError, subprocess.TimeoutExpired):
-        return False
+        return False, None
+    ttl = None
+    m = TTL_RE.search((r.stdout or "") + (r.stderr or ""))
+    if m:
+        ttl = int(m.group(1))
+    return r.returncode == 0, ttl
 
 
 def _is_broadcast(ip: str, mac: str) -> bool:
@@ -96,7 +113,9 @@ def _is_broadcast(ip: str, mac: str) -> bool:
 
 def _arp_table() -> dict[str, str]:
     try:
-        raw = subprocess.check_output(["arp", "-a"], text=True, timeout=8, errors="ignore")
+        raw = subprocess.check_output(
+            ["arp", "-a"], text=True, timeout=8, encoding="utf-8", errors="ignore"
+        )
     except (OSError, subprocess.TimeoutExpired):
         return {}
     out = {}
@@ -115,12 +134,14 @@ def _hostname(ip: str) -> str:
 
 
 def discover(cidr: str, cancel: threading.Event, on_host, on_log) -> None:
+    """Ping+ARP+short TCP probe on an already-validated private /24. Own LAN only."""
     net = require_small_private(cidr)
     self_ip = local_ipv4()
     self_mac = local_mac(self_ip)
     on_log(f"[scan] ping sweep {net} (own LAN only)")
     targets = [str(h) for h in net.hosts()]
     live: list[str] = []
+    ttls: dict[str, int | None] = {}
 
     with ThreadPoolExecutor(max_workers=32) as pool:
         futs = {pool.submit(_ping, ip): ip for ip in targets}
@@ -130,12 +151,13 @@ def discover(cidr: str, cancel: threading.Event, on_host, on_log) -> None:
                 return
             ip = futs[fut]
             try:
-                ok = fut.result()
+                ok, ttl = fut.result()
             except Exception:
-                ok = False
+                ok, ttl = False, None
             if ok:
                 live.append(ip)
-                on_log(f"[ping] {ip}")
+                ttls[ip] = ttl
+                on_log(f"[ping] {ip}" + (f" ttl={ttl}" if ttl else ""))
 
     table = _arp_table()
     for ip, mac in table.items():
@@ -166,11 +188,15 @@ def discover(cidr: str, cancel: threading.Event, on_host, on_log) -> None:
             "mac": mac,
             "vendor": vendor_of(mac),
             "hostname": _hostname(ip),
+            "os_guess": os_guess(ttls.get(ip)),
+            "ttl": ttls.get(ip),
             "ports": ports,
             "score": total,
             "level": level,
             "reasons": reasons,
             "is_self": ip == self_ip,
+            "flag": "",
+            "mac_peers": 1,
         }
         on_host(host)
     on_log(f"[scan] complete · {len(live)} nodes")

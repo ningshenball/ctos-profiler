@@ -12,6 +12,7 @@ from fastapi.staticfiles import StaticFiles
 from pydantic import BaseModel, Field
 
 from scanner.discover import discover, require_small_private
+from scanner.history import annotate
 
 ROOT = Path(__file__).parent
 WEB = ROOT / "web"
@@ -27,7 +28,7 @@ EMPTY = {
     "log": ["[boot] ctOS profiler", "[gate] private /24 only · authorization required"],
 }
 
-# Single-user localhost session. Not multi-tenant; one process, one operator.
+# Single-user localhost session. Not multi-tenant.
 STATE = dict(EMPTY)
 CANCEL = threading.Event()
 LOCK = threading.Lock()
@@ -61,9 +62,23 @@ def load_demo():
     return json.loads(DEMO.read_text(encoding="utf-8"))
 
 
+def load_previous() -> dict | None:
+    if not LAST.exists():
+        return None
+    try:
+        return json.loads(LAST.read_text(encoding="utf-8"))
+    except json.JSONDecodeError:
+        return None
+
+
 def save_last() -> None:
     DATA.mkdir(exist_ok=True)
     LAST.write_text(json.dumps(STATE, indent=2), encoding="utf-8")
+
+
+def finish_hosts() -> None:
+    prev = load_previous()
+    STATE["hosts"] = annotate(STATE.get("hosts") or [], prev)
 
 
 def run_discover(cidr: str) -> None:
@@ -89,6 +104,7 @@ def run_discover(cidr: str) -> None:
                 STATE["status"] = "cancelled"
             elif STATE["status"] == "running":
                 STATE["status"] = "done"
+            finish_hosts()
             save_last()
     except Exception as exc:
         with LOCK:
@@ -125,6 +141,7 @@ def api_demo():
     global STATE
     with LOCK:
         STATE = load_demo()
+        finish_hosts()
         save_last()
     return STATE
 
