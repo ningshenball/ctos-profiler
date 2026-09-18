@@ -7,3 +7,8 @@ __pycache__/
 .vscode/
 *.log
 data/last_scan.json
+.venv/
+__pycache__/
+*.pyc
+data/last-*.json
+data/last_scan.json
