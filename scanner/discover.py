@@ -21,6 +21,8 @@ MAC_RE = re.compile(
 PHYS_RE = re.compile(r"Physical Address[.\s]*:\s*([0-9A-Fa-f-]{17})")
 IP_RE = re.compile(r"IPv4 Address[.\s]*:\s*(\d{1,3}(?:\.\d{1,3}){3})")
 TTL_RE = re.compile(r"ttl[=:](\d+)", re.I)
+ADAPTER_RE = re.compile(r"^(?:[A-Za-z].*?)adapter (.+):$", re.I)
+SSID_RE = re.compile(r"^\s*SSID\s*:\s*(.+)\s*$", re.I)
 
 
 def require_small_private(cidr: str) -> ipaddress.IPv4Network:
@@ -65,14 +67,20 @@ def _mac_from_uuid() -> str:
     return ":".join(f"{(n >> i) & 0xFF:02X}" for i in range(40, -1, -8))
 
 
+def _ipconfig_all() -> str:
+    if os.name != "nt":
+        return ""
+    try:
+        return subprocess.check_output(
+            ["ipconfig", "/all"], text=True, timeout=8, encoding="utf-8", errors="ignore"
+        )
+    except (OSError, subprocess.TimeoutExpired):
+        return ""
+
+
 def local_mac(self_ip: str | None) -> str:
-    if os.name == "nt" and self_ip:
-        try:
-            raw = subprocess.check_output(
-                ["ipconfig", "/all"], text=True, timeout=8, encoding="utf-8", errors="ignore"
-            )
-        except (OSError, subprocess.TimeoutExpired):
-            raw = ""
+    raw = _ipconfig_all()
+    if raw and self_ip:
         block_mac = ""
         for line in raw.splitlines():
             m = PHYS_RE.search(line)
@@ -82,6 +90,75 @@ def local_mac(self_ip: str | None) -> str:
             if i and i.group(1) == self_ip and block_mac:
                 return block_mac
     return _mac_from_uuid()
+
+
+def local_adapter(self_ip: str | None) -> str:
+    raw = _ipconfig_all()
+    if not raw or not self_ip:
+        return ""
+    name = ""
+    for line in raw.splitlines():
+        s = line.strip()
+        a = ADAPTER_RE.match(s)
+        if a:
+            name = a.group(1).strip()
+            continue
+        if s.endswith(":") and "adapter" in s.lower():
+            name = s[:-1]
+        i = IP_RE.search(line)
+        if i and i.group(1) == self_ip:
+            return name
+    return name
+
+
+def local_ssid() -> str:
+    if os.name != "nt":
+        return ""
+
+    def _from_text(raw: str) -> str:
+        for line in (raw or "").splitlines():
+            m = SSID_RE.match(line)
+            if m:
+                val = m.group(1).strip()
+                if val and val.lower() != "ssid":
+                    return val
+        return ""
+
+    try:
+        r = subprocess.run(
+            ["netsh", "wlan", "show", "interfaces"],
+            capture_output=True,
+            text=True,
+            timeout=8,
+            encoding="utf-8",
+            errors="ignore",
+        )
+        got = _from_text((r.stdout or "") + (r.stderr or ""))
+        if got:
+            return got
+    except (OSError, subprocess.TimeoutExpired):
+        pass
+
+    try:
+        r = subprocess.run(
+            [
+                "powershell",
+                "-NoProfile",
+                "-Command",
+                "(Get-NetConnectionProfile).Name",
+            ],
+            capture_output=True,
+            text=True,
+            timeout=8,
+            encoding="utf-8",
+            errors="ignore",
+        )
+        name = (r.stdout or "").strip().splitlines()
+        if name and name[0] and name[0].lower() not in {"name", ""}:
+            return name[0].strip()
+    except (OSError, subprocess.TimeoutExpired):
+        pass
+    return ""
 
 
 def _ping(ip: str) -> tuple[bool, int | None]:
@@ -138,6 +215,9 @@ def discover(cidr: str, cancel: threading.Event, on_host, on_log) -> None:
     net = require_small_private(cidr)
     self_ip = local_ipv4()
     self_mac = local_mac(self_ip)
+    nic = local_adapter(self_ip)
+    ssid = local_ssid()
+    self_nic = " · ".join(p for p in (nic, ssid) if p)
     on_log(f"[scan] ping sweep {net} (own LAN only)")
     targets = [str(h) for h in net.hosts()]
     live: list[str] = []
@@ -188,6 +268,7 @@ def discover(cidr: str, cancel: threading.Event, on_host, on_log) -> None:
             "mac": mac,
             "vendor": vendor_of(mac),
             "hostname": _hostname(ip),
+            "adapter": self_nic if ip == self_ip else "",
             "os_guess": os_guess(ttls.get(ip)),
             "ttl": ttls.get(ip),
             "ports": ports,

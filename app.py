@@ -1,6 +1,7 @@
 """ctOS Profiler — authorized private-LAN discovery. Localhost UI."""
 
 import json
+import re
 import threading
 import time
 from pathlib import Path
@@ -11,14 +12,14 @@ from fastapi.responses import FileResponse, JSONResponse
 from fastapi.staticfiles import StaticFiles
 from pydantic import BaseModel, Field
 
-from scanner.discover import discover, require_small_private
+from scanner.discover import discover, local_ipv4, require_small_private
 from scanner.history import annotate
+from scanner.ports import PORTS
 
 ROOT = Path(__file__).parent
 WEB = ROOT / "web"
 DATA = ROOT / "data"
 DEMO = DATA / "demo_hosts.json"
-LAST = DATA / "last_scan.json"
 
 EMPTY = {
     "scan_id": None,
@@ -37,6 +38,14 @@ LOCK = threading.Lock()
 class ScanRequest(BaseModel):
     cidr: str = Field(..., min_length=1)
     authorized: bool = False
+
+
+def cidr_slug(cidr: str) -> str:
+    return re.sub(r"[^0-9a-zA-Z]+", "-", cidr.strip())[:48].strip("-") or "unknown"
+
+
+def last_path(cidr: str) -> Path:
+    return DATA / f"last-{cidr_slug(cidr)}.json"
 
 
 def reset_state() -> None:
@@ -62,22 +71,26 @@ def load_demo():
     return json.loads(DEMO.read_text(encoding="utf-8"))
 
 
-def load_previous() -> dict | None:
-    if not LAST.exists():
+def load_previous(cidr: str) -> dict | None:
+    path = last_path(cidr)
+    if not path.exists():
         return None
     try:
-        return json.loads(LAST.read_text(encoding="utf-8"))
+        return json.loads(path.read_text(encoding="utf-8"))
     except json.JSONDecodeError:
         return None
 
 
 def save_last() -> None:
+    cidr = STATE.get("cidr") or ""
+    if not cidr:
+        return
     DATA.mkdir(exist_ok=True)
-    LAST.write_text(json.dumps(STATE, indent=2), encoding="utf-8")
+    last_path(cidr).write_text(json.dumps(STATE, indent=2), encoding="utf-8")
 
 
 def finish_hosts() -> None:
-    prev = load_previous()
+    prev = load_previous(STATE.get("cidr") or "")
     STATE["hosts"] = annotate(STATE.get("hosts") or [], prev)
 
 
@@ -127,6 +140,15 @@ def api_state():
         return dict(STATE)
 
 
+@app.get("/api/suggest")
+def api_suggest():
+    ip = local_ipv4()
+    if not ip:
+        return JSONResponse({"error": "no local IPv4"}, status_code=400)
+    cidr = ".".join(ip.split(".")[:3]) + ".0/24"
+    return {"ip": ip, "cidr": cidr}
+
+
 @app.post("/api/clear")
 def api_clear():
     with LOCK:
@@ -141,6 +163,7 @@ def api_demo():
     global STATE
     with LOCK:
         STATE = load_demo()
+        STATE["cidr"] = STATE.get("cidr") or "demo"
         finish_hosts()
         save_last()
     return STATE
@@ -178,5 +201,16 @@ def api_export():
     )
 
 
+@app.get("/api/ports")
+def api_ports():
+    return {
+        "ports": [
+            {"port": p, "name": PORTS[p][0]}
+            for p in sorted(PORTS)
+        ]
+    }
+
+
 if __name__ == "__main__":
     uvicorn.run("app:app", host="127.0.0.1", port=8787, reload=True)
+
