@@ -19,8 +19,8 @@
 <b>ctOS Profiler</b> is a localhost Watch Dogs–style profiler.
 Start in demo mode, then scan a private /24 you actually own.
 Ping + ARP + a short TCP list. No Nmap engine. No packet capture. No exploits.
-<img src="docs/scan.png" width="720" alt="home LAN scan"/>
 <img src="docs/gate.png" width="720" alt="authorization gate"/>
+<img src="docs/scan.png" width="720" alt="home LAN scan"/>
 <h3>★ Features <img src="explode.webp" height="38" alt=""/></h3>
 ✦ <b>Localhost only</b> — binds to 127.0.0.1:8787<br/>
 ✦ <b>Demo mode first</b> — fake hosts before anything live<br/>
