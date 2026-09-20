@@ -37,10 +37,13 @@ git clone https://github.com/ningshenball/ctos-profiler.git
 cd ctos-profiler
 python -m venv .venv
 .\.venv\Scripts\Activate.ps1
-python -m pip install -r requirements.txt
+pip install -r requirements.txt
 python app.py
 </pre>
-Open http://127.0.0.1:8787 and http://127.0.0.1:8787/docs
+Open http://127.0.0.1:8787 and http://127.0.0.1:8787/docs<br/>
+Use this LAN fills the CIDR from your current private IPv4. Check the authorization box before a live scan.<br/>
+<code>data/last-*.json</code> is a local snapshot only. It is gitignored and not committed.
+<br/>
 Linux / mac:
 <pre>
 python -m venv .venv
@@ -50,6 +53,5 @@ python app.py
 </pre>
 <h3>★ Tests</h3>
 <pre>
-python -m pytest test/test_cidr.py -q
+python -m pytest test -q
 </pre>
-
