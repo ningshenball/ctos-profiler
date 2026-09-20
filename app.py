@@ -25,6 +25,7 @@ EMPTY = {
     "scan_id": None,
     "cidr": "",
     "status": "idle",
+    "started_at": None,
     "hosts": [],
     "log": ["[boot] ctOS profiler", "[gate] private /24 only · authorization required"],
 }
@@ -54,6 +55,7 @@ def reset_state() -> None:
         "scan_id": None,
         "cidr": "",
         "status": "idle",
+        "started_at": None,
         "hosts": [],
         "log": list(EMPTY["log"]),
     }
@@ -100,6 +102,7 @@ def run_discover(cidr: str) -> None:
             STATE["scan_id"] = "live-" + str(int(time.time()))
             STATE["cidr"] = cidr
             STATE["status"] = "running"
+            STATE["started_at"] = time.strftime("%Y-%m-%d %H:%M")
             STATE["hosts"] = []
             log_line("[scan] authorized range " + cidr)
 
@@ -164,6 +167,7 @@ def api_demo():
     with LOCK:
         STATE = load_demo()
         STATE["cidr"] = STATE.get("cidr") or "demo"
+        STATE["started_at"] = time.strftime("%Y-%m-%d %H:%M")
         finish_hosts()
         save_last()
     return STATE

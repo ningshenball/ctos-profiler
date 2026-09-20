@@ -223,6 +223,7 @@
             <span class="text-warn">med <b id="statMed">0</b></span>
             <span class="text-high">high <b id="statHigh">0</b></span>
         </section>
+        <p id="scanMeta" class="hidden mb-6 text-xs font-mono text-mute"></p>
 
         <section id="grid" class="grid sm:grid-cols-2 lg:grid-cols-3 gap-4"></section>
         <p id="empty" class="text-mute text-sm mt-2">No nodes. Load demo or run a scan.</p>
@@ -304,6 +305,16 @@
                 document.getElementById("statLow").textContent = all.filter((h) => h.level === "low").length;
                 document.getElementById("statMed").textContent = all.filter((h) => h.level === "medium").length;
                 document.getElementById("statHigh").textContent = all.filter((h) => h.level === "high").length;
+            }
+
+            const meta = document.getElementById("scanMeta");
+            const bits = [state.scan_id, state.started_at].filter(Boolean);
+            if (bits.length) {
+                meta.classList.remove("hidden");
+                meta.textContent = bits.join(" · ");
+            } else {
+                meta.classList.add("hidden");
+                meta.textContent = "";
             }
 
             const grid = document.getElementById("grid");
