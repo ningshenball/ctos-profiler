@@ -484,7 +484,7 @@
                         <span class="text-[10px] font-mono uppercase ${h.is_self ? "text-sage" : "text-mute"}">${h.is_self ? "you" : "node"}</span>
                     </div>
                     <p class="text-xs text-mute mt-1">hostname · ${esc(h.hostname) || "—"}</p>
-                    <p class="text-xs text-mute">${h.adapter ? "adapter · " + esc(h.adapter) : ""}</p>
+                    <p class="text-xs ${h.is_self ? "text-sage" : "text-mute"}">${h.is_self ? "adapter · " + (esc(h.adapter) || "—") : (h.adapter ? "adapter · " + esc(h.adapter) : "")}</p>
                     <p class="font-mono text-xs text-mute mt-3">${esc(h.mac) || "—"}</p>
                     <p class="text-xs text-mute">vendor · ${esc(h.vendor) || "—"}</p>
                     <p class="text-xs text-mute">os · ${esc(h.os_guess) || "—"}</p>

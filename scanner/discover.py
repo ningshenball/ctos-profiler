@@ -218,6 +218,7 @@ def discover(cidr: str, cancel: threading.Event, on_host, on_log) -> None:
     nic = local_adapter(self_ip)
     ssid = local_ssid()
     self_nic = " · ".join(p for p in (nic, ssid) if p)
+    on_log(f"[nic] {self_nic}" if self_nic else "[nic] —")
     on_log(f"[scan] ping sweep {net} (own LAN only)")
     targets = [str(h) for h in net.hosts()]
     live: list[str] = []
