@@ -152,6 +152,31 @@
             animation: spin 0.6s linear infinite;
             margin-right: 6px;
         }
+
+        #report { display: none; }
+
+        @media print {
+            body::before,
+            #scanline,
+            #backdrop,
+            #drawer,
+            .max-w-6xl { display: none !important; }
+            body { background: #fff !important; color: #111 !important; }
+            #report {
+                display: block !important;
+                padding: 24px;
+                font-family: "IBM Plex Sans", sans-serif;
+            }
+            #report h1 { font-size: 20px; margin: 0 0 8px; }
+            #report p { font-family: "IBM Plex Mono", monospace; font-size: 12px; margin: 0 0 6px; }
+            #report table { width: 100%; border-collapse: collapse; margin-top: 16px; font-size: 12px; }
+            #report th, #report td {
+                border-bottom: 1px solid #ccc;
+                text-align: left;
+                padding: 6px 8px;
+                vertical-align: top;
+            }
+        }
     </style>
 </head>
 
@@ -196,6 +221,7 @@
                         data</button>
                     <a id="exportBtn" href="/api/export" class="px-3 py-2 border border-sage text-sage text-sm">Export
                         JSON</a>
+                    <button id="reportBtn" type="button" class="px-3 py-2 border border-sage text-sage text-sm">Report</button>
                 </div>
                 <p id="err" class="text-xs text-high mt-3"></p>
             </div>
@@ -242,6 +268,8 @@
         <p id="empty" class="text-mute text-sm mt-2">No nodes. Load demo or run a scan.</p>
         <section id="log" class="mt-8 bg-panel border border-line p-4 font-mono text-xs text-mute leading-6"></section>
     </div>
+
+    <section id="report"></section>
 
     <div id="backdrop" class="hidden fixed inset-0 bg-void/60 z-[8]"></div>
     <aside id="drawer"
@@ -513,6 +541,38 @@
         document.getElementById("levelFilter").onchange = () => render(lastState);
         document.getElementById("viewGrid").onclick = () => setView("grid");
         document.getElementById("viewMap").onclick = () => setView("map");
+
+        function printReport() {
+            const state = lastState || {};
+            const hosts = (state.hosts || []).slice().sort((a, b) =>
+                String(a.ip || "").localeCompare(String(b.ip || ""), undefined, { numeric: true })
+            );
+            const count = (level) => hosts.filter((h) => h.level === level).length;
+            const rows = hosts.map((h) => {
+                const ports = (h.ports || [])
+                    .map((p) => (p.name ? `${p.port} ${esc(p.name)}` : String(p.port)))
+                    .join(", ") || "—";
+                return `<tr>
+            <td>${esc(h.ip) || "—"}</td>
+            <td>${esc(h.hostname) || "—"}</td>
+            <td>${esc(h.vendor) || "—"}</td>
+            <td>${esc(h.level) || "—"}</td>
+            <td>${ports}</td>
+        </tr>`;
+            }).join("");
+            document.getElementById("report").innerHTML = `
+        <h1>ctOS Profiler</h1>
+        <p>${esc(state.scan_id) || "—"} · ${esc(state.started_at) || "—"}</p>
+        <p>${esc(state.cidr) || "—"}</p>
+        <p>nodes ${hosts.length} · low ${count("low")} · med ${count("medium")} · high ${count("high")}</p>
+        <table>
+            <thead><tr><th>IP</th><th>Hostname</th><th>Vendor</th><th>Level</th><th>Open ports</th></tr></thead>
+            <tbody>${rows || `<tr><td colspan="5">No nodes</td></tr>`}</tbody>
+        </table>`;
+            window.print();
+        }
+
+        document.getElementById("reportBtn").onclick = () => printReport();
 
         async function refreshHistory() {
             const sel = document.getElementById("historySelect");
