@@ -176,9 +176,9 @@ def api_suggest():
 def api_clear():
     with LOCK:
         if STATE.get("status") == "running":
-            CANCEL.set()
+            return JSONResponse({"error": "scan already running"}, status_code=409)
         reset_state()
-    return STATE
+        return dict(STATE)
 
 
 @app.post("/api/demo")
@@ -189,7 +189,6 @@ def api_demo():
         STATE["cidr"] = STATE.get("cidr") or "demo"
         STATE["started_at"] = time.strftime("%Y-%m-%d %H:%M")
         finish_hosts()
-        save_last()
     return STATE
 
 
