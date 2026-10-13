@@ -163,7 +163,7 @@ def local_ssid() -> str:
 
 def _ping(ip: str) -> tuple[bool, int | None]:
     if os.name == "nt":
-        cmd = ["ping", "-n", "1", "-w", "400", ip]
+        cmd = ["ping", "-n", "1", "-w", "800", ip]
     else:
         cmd = ["ping", "-c", "1", "-W", "1", ip]
     try:
@@ -171,7 +171,7 @@ def _ping(ip: str) -> tuple[bool, int | None]:
             cmd,
             capture_output=True,
             text=True,
-            timeout=2,
+            timeout=3,
             encoding="utf-8",
             errors="ignore",
         )
@@ -239,6 +239,7 @@ def discover(cidr: str, cancel: threading.Event, on_host, on_log) -> None:
                 ttls[ip] = ttl
                 on_log(f"[ping] {ip}" + (f" ttl={ttl}" if ttl else ""))
 
+    pinged = list(live)
     table = _arp_table()
     for ip, mac in table.items():
         try:
@@ -249,6 +250,34 @@ def discover(cidr: str, cancel: threading.Event, on_host, on_log) -> None:
                 on_log(f"[arp] {ip}")
         except ValueError:
             pass
+
+    missing = [
+        ip for ip in pinged
+        if ip != self_ip and not table.get(ip) and not ip.endswith(".255")
+    ]
+    if missing:
+        if cancel.is_set():
+            on_log("[scan] cancelled")
+            return
+        on_log(f"[arp] refresh {len(missing)} without mac")
+        with ThreadPoolExecutor(max_workers=32) as pool:
+            futs = [pool.submit(_ping, ip) for ip in missing]
+            for fut in as_completed(futs):
+                if cancel.is_set():
+                    break
+                try:
+                    fut.result()
+                except Exception:
+                    pass
+        if cancel.is_set():
+            on_log("[scan] cancelled")
+            return
+        refreshed = _arp_table()
+        for ip in missing:
+            mac = refreshed.get(ip, "")
+            if mac and not _is_broadcast(ip, mac):
+                table[ip] = mac
+                on_log(f"[arp] {ip} mac")
 
     live = sorted(set(live), key=lambda x: tuple(int(p) for p in x.split(".")))
     live = [ip for ip in live if not _is_broadcast(ip, table.get(ip, ""))]
