@@ -28,11 +28,18 @@ def _one(ip: str, port: int, timeout: float = 0.5) -> bool:
         return False
 
 
-def probe(ip: str) -> list[dict]:
+def probe(ip: str, cancel=None) -> list[dict]:
     found = []
+    missed = []
+
+    def stopped() -> bool:
+        return cancel is not None and cancel.is_set()
+
     with ThreadPoolExecutor(max_workers=11) as pool:
-        futs = {pool.submit(_one, ip, p): p for p in PORTS}
+        futs = {pool.submit(_one, ip, p, 0.5): p for p in PORTS}
         for fut in as_completed(futs):
+            if stopped():
+                break
             port = futs[fut]
             try:
                 open_ = fut.result()
@@ -41,5 +48,23 @@ def probe(ip: str) -> list[dict]:
             if open_:
                 name, _w = PORTS[port]
                 found.append({"port": port, "name": name, "state": "open"})
+            elif port in PORTS:
+                missed.append(port)
+
+    if missed and not stopped():
+        with ThreadPoolExecutor(max_workers=11) as pool:
+            futs = {pool.submit(_one, ip, p, 1.2): p for p in missed}
+            for fut in as_completed(futs):
+                if stopped():
+                    break
+                port = futs[fut]
+                try:
+                    open_ = fut.result()
+                except Exception:
+                    open_ = False
+                if open_ and port in PORTS:
+                    name, _w = PORTS[port]
+                    found.append({"port": port, "name": name, "state": "open"})
+
     found.sort(key=lambda x: x["port"])
     return found

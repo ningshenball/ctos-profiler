@@ -288,7 +288,7 @@ def discover(cidr: str, cancel: threading.Event, on_host, on_log) -> None:
             on_log("[scan] cancelled")
             return
         on_log(f"[ports] {ip}")
-        ports = probe(ip)
+        ports = probe(ip, cancel)
         total, level, reasons = score_host(ports)
         mac = table.get(ip, "")
         if ip == self_ip and not mac:
