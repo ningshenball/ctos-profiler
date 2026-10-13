@@ -41,8 +41,28 @@ class ScanRequest(BaseModel):
     authorized: bool = False
 
 
+class HistoryLoad(BaseModel):
+    name: str = Field(..., min_length=1)
+
+
 def cidr_slug(cidr: str) -> str:
     return re.sub(r"[^0-9a-zA-Z]+", "-", cidr.strip())[:48].strip("-") or "unknown"
+
+
+_HISTORY_NAME = re.compile(r"^last-[0-9A-Za-z-]+\.json$")
+
+
+def history_file(name: str) -> Path | None:
+    if not _HISTORY_NAME.fullmatch(name or ""):
+        return None
+    path = (DATA / name).resolve()
+    try:
+        path.relative_to(DATA.resolve())
+    except ValueError:
+        return None
+    if not path.is_file():
+        return None
+    return path
 
 
 def last_path(cidr: str) -> Path:
@@ -203,6 +223,51 @@ def api_export():
         payload,
         headers={"Content-Disposition": "attachment; filename=ctos-scan.json"},
     )
+
+
+@app.get("/api/history")
+def api_history():
+    rows = []
+    if DATA.is_dir():
+        for path in DATA.glob("last-*.json"):
+            if not _HISTORY_NAME.fullmatch(path.name):
+                continue
+            try:
+                data = json.loads(path.read_text(encoding="utf-8"))
+            except (json.JSONDecodeError, OSError):
+                continue
+            if not isinstance(data, dict):
+                continue
+            rows.append({
+                "name": path.name,
+                "cidr": data.get("cidr") or "",
+                "started_at": data.get("started_at") or "",
+                "host_count": len(data.get("hosts") or []),
+            })
+    rows.sort(key=lambda r: r["name"])
+    rows.sort(key=lambda r: r["started_at"] or "", reverse=True)
+    return {"snapshots": rows}
+
+
+@app.post("/api/history/load")
+def api_history_load(body: HistoryLoad):
+    global STATE
+    path = history_file(body.name)
+    if path is None:
+        return JSONResponse({"error": "unknown snapshot"}, status_code=400)
+    with LOCK:
+        if STATE.get("status") == "running":
+            return JSONResponse({"error": "scan already running"}, status_code=409)
+        try:
+            data = json.loads(path.read_text(encoding="utf-8"))
+        except (json.JSONDecodeError, OSError):
+            return JSONResponse({"error": "unknown snapshot"}, status_code=400)
+        if not isinstance(data, dict):
+            return JSONResponse({"error": "unknown snapshot"}, status_code=400)
+        if data.get("status") == "running":
+            data["status"] = "done"
+        STATE = data
+        return dict(STATE)
 
 
 @app.get("/api/ports")

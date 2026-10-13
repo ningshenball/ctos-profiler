@@ -225,11 +225,14 @@
         </section>
         <p id="scanMeta" class="hidden mb-6 text-xs font-mono text-mute"></p>
 
-        <div id="viewToggle" class="flex gap-2 mb-4">
+        <div id="viewToggle" class="flex flex-wrap gap-2 mb-4 items-center">
             <button id="viewGrid" type="button"
                 class="px-3 py-1 border border-sage text-sage text-xs font-mono">Grid</button>
             <button id="viewMap" type="button"
                 class="px-3 py-1 border border-line text-mute text-xs font-mono">Map</button>
+            <select id="historySelect" class="bg-void border border-line px-3 py-1 font-mono text-xs text-mute">
+                <option value="">History</option>
+            </select>
         </div>
 
         <section id="grid" class="grid sm:grid-cols-2 lg:grid-cols-3 gap-4"></section>
@@ -511,6 +514,51 @@
         document.getElementById("viewGrid").onclick = () => setView("grid");
         document.getElementById("viewMap").onclick = () => setView("map");
 
+        async function refreshHistory() {
+            const sel = document.getElementById("historySelect");
+            let rows = [];
+            try {
+                const r = await fetch("/api/history");
+                const data = await r.json();
+                rows = data.snapshots || [];
+            } catch (e) {
+                rows = [];
+            }
+            const keep = sel.value;
+            sel.innerHTML = "";
+            const placeholder = document.createElement("option");
+            placeholder.value = "";
+            placeholder.textContent = "History";
+            sel.appendChild(placeholder);
+            rows.forEach((row) => {
+                const opt = document.createElement("option");
+                opt.value = row.name;
+                opt.textContent = [row.cidr, row.started_at, row.host_count]
+                    .filter((v) => v !== "" && v != null)
+                    .join(" · ");
+                sel.appendChild(opt);
+            });
+            sel.value = keep === "" || rows.some((row) => row.name === keep) ? keep : "";
+        }
+
+        document.getElementById("historySelect").onfocus = () => refreshHistory();
+        document.getElementById("historySelect").onchange = async () => {
+            const name = document.getElementById("historySelect").value;
+            if (!name) return;
+            document.getElementById("err").textContent = "";
+            const r = await fetch("/api/history/load", {
+                method: "POST",
+                headers: { "Content-Type": "application/json" },
+                body: JSON.stringify({ name }),
+            });
+            const data = await r.json();
+            if (!r.ok) {
+                document.getElementById("err").textContent = data.error || "unknown snapshot";
+                return;
+            }
+            render(data);
+        };
+
         document.addEventListener("keydown", (e) => {
             if (e.target.tagName === "INPUT" || e.target.tagName === "SELECT") return;
             if (e.key === "Escape") closeDrawer();
@@ -549,6 +597,7 @@
                 document.getElementById("err").textContent = data.error || "scan blocked";
                 return;
             }
+            document.getElementById("historySelect").value = "";
             startPoll();
             render(await getState());
         };
@@ -561,6 +610,7 @@
         async function boot() {
             await fetch("/api/clear", { method: "POST" });
             render(await getState());
+            refreshHistory();
             try {
                 const r = await fetch("/api/ports");
                 const d = await r.json();
