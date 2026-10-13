@@ -225,7 +225,15 @@
         </section>
         <p id="scanMeta" class="hidden mb-6 text-xs font-mono text-mute"></p>
 
+        <div id="viewToggle" class="flex gap-2 mb-4">
+            <button id="viewGrid" type="button" class="px-3 py-1 border border-sage text-sage text-xs font-mono">Grid</button>
+            <button id="viewMap" type="button" class="px-3 py-1 border border-line text-mute text-xs font-mono">Map</button>
+        </div>
+
         <section id="grid" class="grid sm:grid-cols-2 lg:grid-cols-3 gap-4"></section>
+        <section id="mapWrap" class="hidden bg-panel border border-line">
+            <svg id="map" viewBox="0 0 800 560" class="w-full h-auto" role="img" aria-label="LAN topology"></svg>
+        </section>
         <p id="empty" class="text-mute text-sm mt-2">No nodes. Load demo or run a scan.</p>
         <section id="log" class="mt-8 bg-panel border border-line p-4 font-mono text-xs text-mute leading-6"></section>
     </div>
@@ -247,6 +255,98 @@
             medium: "border-warn text-warn",
             high: "border-high text-high",
         };
+        const levelFill = { low: "#7ea392", medium: "#c4a574", high: "#c45c4a" };
+        let viewMode = "grid";
+
+        function svgEl(name, attrs) {
+            const el = document.createElementNS("http://www.w3.org/2000/svg", name);
+            for (const [k, v] of Object.entries(attrs)) el.setAttribute(k, String(v));
+            return el;
+        }
+
+        function ipNum(ip) {
+            return String(ip || "").split(".").reduce((n, o) => n * 256 + (parseInt(o, 10) || 0), 0);
+        }
+
+        function lastOctet(ip) {
+            return parseInt(String(ip || "").split(".")[3], 10);
+        }
+
+        function pickGateway(list) {
+            const dot1 = list.find((h) => lastOctet(h.ip) === 1);
+            if (dot1) return dot1;
+            return list.slice().sort((a, b) => ipNum(a.ip) - ipNum(b.ip))[0];
+        }
+
+        function syncViewButtons() {
+            const on = "px-3 py-1 border border-sage text-sage text-xs font-mono";
+            const off = "px-3 py-1 border border-line text-mute text-xs font-mono";
+            document.getElementById("viewGrid").className = viewMode === "grid" ? on : off;
+            document.getElementById("viewMap").className = viewMode === "map" ? on : off;
+        }
+
+        function setView(mode) {
+            viewMode = mode;
+            syncViewButtons();
+            render(lastState);
+        }
+
+        function drawMap(list) {
+            const svg = document.getElementById("map");
+            svg.replaceChildren();
+            if (!list.length) return;
+
+            const gw = pickGateway(list);
+            const others = list
+                .filter((h) => h !== gw)
+                .slice()
+                .sort((a, b) => ipNum(a.ip) - ipNum(b.ip));
+            const cx = 400;
+            const cy = 270;
+            const radius = 200;
+
+            others.forEach((h, i) => {
+                let angle = -Math.PI / 2 + (i * 2 * Math.PI) / others.length;
+                if (others.length === 1) angle = -Math.PI / 2;
+                else if (others.length === 2) angle = i === 0 ? -5 * Math.PI / 6 : -Math.PI / 6;
+                const x = cx + radius * Math.cos(angle);
+                const y = cy + radius * Math.sin(angle);
+                svg.appendChild(svgEl("line", {
+                    x1: cx, y1: cy, x2: x, y2: y,
+                    stroke: "#1c2124", "stroke-width": 1,
+                }));
+                h._x = x;
+                h._y = y;
+            });
+
+            function addNode(h, x, y, r) {
+                const g = svgEl("g", { cursor: "pointer" });
+                g.appendChild(svgEl("circle", {
+                    cx: x, cy: y, r,
+                    fill: levelFill[h.level] || "#8b938e",
+                    stroke: h.is_self ? "#7ea392" : "#070809",
+                    "stroke-width": h.is_self ? 2 : 1,
+                }));
+                const label = svgEl("text", {
+                    x, y: y + r + 14,
+                    "text-anchor": "middle",
+                    fill: "#e8e4dc",
+                    "font-family": "IBM Plex Mono, monospace",
+                    "font-size": 11,
+                });
+                label.textContent = h.ip || "";
+                g.appendChild(label);
+                const tip = svgEl("title", {});
+                tip.textContent = h.ip || "";
+                g.appendChild(tip);
+                g.onclick = () => openProfile(h);
+                svg.appendChild(g);
+            }
+
+            others.forEach((h) => addNode(h, h._x, h._y, 14));
+            addNode(gw, cx, cy, 20);
+        }
+
         let timer = null;
         let lastState = { hosts: [], status: "idle", log: [] };
 
@@ -318,19 +418,34 @@
             }
 
             const grid = document.getElementById("grid");
-            grid.innerHTML = "";
+            const mapWrap = document.getElementById("mapWrap");
             document.getElementById("empty").style.display = hosts.length ? "none" : "block";
 
-            hosts.forEach((h, i) => {
-                const el = document.createElement("article");
-                el.className = `card-enter bg-panel border border-line border-l-2 ${edgeCls[h.level] || "border-l-line"} p-4 cursor-pointer`;
-                el.style.animationDelay = Math.min(i, 8) * 0.05 + "s";
-                const flags = [
-                    h.flag === "new" ? '<span class="text-[10px] font-mono text-sage">NEW</span>' : "",
-                    h.flag === "changed" ? '<span class="text-[10px] font-mono text-warn">CHANGED</span>' : "",
-                    h.mac_peers > 1 ? `<span class="text-[10px] font-mono text-mute">same MAC ×${h.mac_peers}</span>` : "",
-                ].join(" ");
-                el.innerHTML = `
+            if (!hosts.length) {
+                grid.classList.add("hidden");
+                mapWrap.classList.add("hidden");
+                grid.innerHTML = "";
+                document.getElementById("map").replaceChildren();
+            } else if (viewMode === "map") {
+                grid.classList.add("hidden");
+                grid.innerHTML = "";
+                mapWrap.classList.remove("hidden");
+                drawMap(hosts);
+            } else {
+                mapWrap.classList.add("hidden");
+                document.getElementById("map").replaceChildren();
+                grid.classList.remove("hidden");
+                grid.innerHTML = "";
+                hosts.forEach((h, i) => {
+                    const el = document.createElement("article");
+                    el.className = `card-enter bg-panel border border-line border-l-2 ${edgeCls[h.level] || "border-l-line"} p-4 cursor-pointer`;
+                    el.style.animationDelay = Math.min(i, 8) * 0.05 + "s";
+                    const flags = [
+                        h.flag === "new" ? '<span class="text-[10px] font-mono text-sage">NEW</span>' : "",
+                        h.flag === "changed" ? '<span class="text-[10px] font-mono text-warn">CHANGED</span>' : "",
+                        h.mac_peers > 1 ? `<span class="text-[10px] font-mono text-mute">same MAC ×${h.mac_peers}</span>` : "",
+                    ].join(" ");
+                    el.innerHTML = `
                     <div class="flex justify-between items-start">
                         <p class="font-mono text-lg">${esc(h.ip)}</p>
                         <span class="text-[10px] font-mono uppercase ${h.is_self ? "text-sage" : "text-mute"}">${h.is_self ? "you" : "node"}</span>
@@ -345,9 +460,10 @@
                         <span class="text-[10px] font-mono uppercase px-2 py-1 border ${badgeCls[h.level] || ""}">${esc(h.level)}</span>
                         <span class="font-mono text-xs text-mute">${(h.ports || []).map((p) => p.port).join(" ") || "—"}</span>
                     </div>`;
-                el.onclick = () => openProfile(h);
-                grid.appendChild(el);
-            });
+                    el.onclick = () => openProfile(h);
+                    grid.appendChild(el);
+                });
+            }
 
             if (status === "running") startPoll();
             else stopPoll();
@@ -390,6 +506,8 @@
         document.getElementById("q").oninput = () => render(lastState);
         document.getElementById("sortBy").onchange = () => render(lastState);
         document.getElementById("levelFilter").onchange = () => render(lastState);
+        document.getElementById("viewGrid").onclick = () => setView("grid");
+        document.getElementById("viewMap").onclick = () => setView("map");
 
         document.addEventListener("keydown", (e) => {
             if (e.target.tagName === "INPUT" || e.target.tagName === "SELECT") return;
